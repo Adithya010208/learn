@@ -1,0 +1,7 @@
+{
+  "name": "AetherLearn — AI Personal Learning Manager",
+  "description": "Three-layer autonomous AI personal learning coach, timetable manager, structured tutor, and career-readiness system for Placement 2029 and GATE CSE.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

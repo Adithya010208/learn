@@ -1,0 +1,1551 @@
+# MASTER DEVELOPMENT PROMPT — AI PERSONAL LEARNING MANAGER
+
+## Project: Build a Complete AI-Powered Personal Learning Manager from Scratch
+
+Act as a senior software architect, product designer, full-stack engineer, AI engineer, database architect, and QA engineer.
+
+Your responsibility is to design, develop, test, and deliver a complete, production-minded **AI Personal Learning Manager** that acts as my personal learning coach, timetable manager, tutor, and career-development assistant.
+
+This is not just a timetable application, task manager, habit tracker, or collection of AI chat features.
+
+It must function as an integrated personal learning system that understands my long-term goals, creates and maintains my learning roadmaps, decides what I should learn next, schedules learning sessions around my real availability, teaches concepts, evaluates my understanding, tracks actual mastery, and continuously adapts my learning journey.
+
+I want the application built from scratch. Work autonomously through the complete development process. Do not stop after creating a plan, wireframe, dashboard, or initial prototype.
+
+---
+
+# 1. CORE PRODUCT VISION
+
+Build an intelligent personal learning manager that answers these questions automatically:
+
+- What should I learn today?
+- Which topic should I learn next?
+- What should I revise?
+- How much time should I spend on each topic?
+- Am I genuinely understanding what I study?
+- Which concepts am I weak in?
+- Am I progressing towards my career goals?
+- What should I do when I miss a learning session?
+- What skills should I develop after completing my current roadmap?
+- How should my learning plan adapt when my college schedule or examination dates change?
+
+I should primarily define my goals and provide feedback.
+
+The AI should handle the learning decisions, including topic selection, sequencing, lesson generation, practice selection, revision, progress evaluation, and adaptive planning.
+
+**Do not make me manually select every syllabus, topic, lesson, duration, or daily learning task.**
+
+The system should take responsibility for the routine learning decisions while allowing me to control important personal decisions.
+
+## AI autonomy principles
+
+1. Make routine learning decisions automatically.
+2. Explain important changes without interrupting me for routine decisions.
+3. Do not ask for approval for every lesson or ordinary scheduling adjustment.
+4. Ask before major roadmap changes that substantially affect my learning direction.
+5. Never change fixed commitments without permission.
+6. Never fabricate completed lessons, assessment results, mastery, or progress.
+7. Never overload my schedule just to increase productivity metrics.
+8. Preserve my learning history and progress.
+9. Continue developing my skills even after the initial syllabus is completed.
+10. Provide a clear explanation whenever an important decision changes my learning direction.
+
+---
+
+# 2. MY PERSONAL GOALS AND PRIORITIES
+
+Use the following goals as the initial configuration.
+
+### Primary goal: Placement
+
+My primary objective is to become placement-ready for a good product-based software company before graduation in 2029.
+
+Build a placement preparation roadmap covering:
+
+- Data Structures and Algorithms.
+- Problem-solving patterns.
+- Coding interview preparation.
+- Object-Oriented Programming.
+- DBMS.
+- Operating Systems.
+- Computer Networks.
+- Software engineering fundamentals.
+- Aptitude and logical reasoning.
+- Technical interview preparation.
+- Communication and HR interviews.
+- Resume and portfolio preparation.
+- Practical development experience.
+- Company-specific preparation when relevant.
+
+Measure placement readiness using actual evidence, not merely completed lesson counts.
+
+### Secondary goal: GATE CSE
+
+GATE is my backup goal.
+
+Create a complete GATE CSE preparation system that includes:
+
+- Subject-wise syllabus coverage.
+- Topic and subtopic progression.
+- Prerequisite tracking.
+- Previous Year Questions.
+- Concept revision.
+- Mock tests.
+- Accuracy and score tracking.
+- Weak-topic identification.
+- Revision cycles.
+- Examination timeline.
+
+Keep the official GATE syllabus distinguishable from additional recommended learning material. Track syllabus changes using reliable official sources.
+
+### Other learning goals
+
+Maintain the following learning tracks:
+
+**1. DSA and Competitive Programming**
+- Problem-solving patterns.
+- Difficulty progression.
+- Coding practice.
+- Contest preparation.
+- Solved problem history.
+- Mistake analysis.
+- Performance and rating tracking.
+
+**2. Full-Stack Development**
+- HTML.
+- CSS.
+- JavaScript.
+- Advanced JavaScript.
+- Frontend frameworks.
+- Backend development.
+- Databases.
+- APIs.
+- Authentication.
+- Deployment.
+- Software architecture.
+- Practical projects.
+
+**3. Cybersecurity and Ethical Hacking**
+- Networking fundamentals.
+- Linux.
+- Programming foundations.
+- Web security.
+- Security tools.
+- Vulnerability assessment.
+- Practical labs.
+- Defensive security.
+- Ethical and legal boundaries.
+
+**4. AI and Machine Learning**
+- Mathematics and fundamentals.
+- Python.
+- Data handling.
+- Machine learning.
+- Deep learning.
+- Generative AI.
+- AI application development.
+- Practical projects.
+
+**5. Japanese**
+- JLPT N5 initially.
+- Vocabulary.
+- Grammar.
+- Reading.
+- Listening.
+- Practice tests.
+- Spaced repetition.
+
+**6. English Communication**
+- Speaking.
+- Pronunciation.
+- Vocabulary.
+- Grammar.
+- Listening.
+- Interview communication.
+- Confidence and fluency.
+- Practical speaking exercises.
+
+## Priority rules
+
+- Placement is the primary career objective.
+- GATE is the backup objective.
+- DSA and competitive programming support placement.
+- Full-stack development, cybersecurity, and AI/ML support my long-term technical career.
+- Japanese and English are additional continuous-development goals.
+
+Do not treat all goals as equally urgent.
+
+Maintain a sensible priority system based on deadlines, importance, available time, and my progress.
+
+## One-main-skill-at-a-time rule
+
+For major technical skill development, maintain one active main skill track at a time.
+
+For example, complete the planned Full-Stack progression before making another major skill track the primary focus.
+
+Do not constantly switch between unfinished Full-Stack, Cybersecurity, and AI/ML roadmaps.
+
+However, continue DSA, GATE, Japanese, and English in their designated timetable sessions.
+
+---
+
+# 3. THREE-LAYER INDEPENDENT ARCHITECTURE
+
+This is a mandatory architectural requirement.
+
+Build the application around three independent but connected functional layers.
+
+They must have separate domain logic, responsibilities, data ownership, and clearly defined interfaces.
+
+Do not combine all business logic into a single service or component.
+
+## LAYER 1 — SCHEDULE MANAGEMENT
+
+Responsible for:
+
+- Working Day timetable.
+- Holiday timetable.
+- Exam Mode timetable.
+- Timetable templates.
+- Date-wise mode assignments.
+- Calendar.
+- Holiday management.
+- Imported holiday dates.
+- Exam dates and examination periods.
+- Fixed and flexible activities.
+- Availability calculation.
+- Daily time allocation.
+- Sleep and health constraints.
+- Schedule editing.
+- Session placement and rescheduling.
+
+This layer decides when time is available.
+
+It does not decide which learning topic I should study or calculate career readiness.
+
+It publishes available time slots and constraints to the Learning Intelligence layer.
+
+## LAYER 2 — LEARNING INTELLIGENCE
+
+This is the main AI learning engine.
+
+Responsible for:
+
+- Learning goals.
+- Syllabus management.
+- Roadmap generation.
+- Topic sequencing.
+- Prerequisite identification.
+- Lesson generation.
+- Teaching.
+- Exercises.
+- Coding challenges.
+- Assessments.
+- Revision.
+- Spaced repetition.
+- Mastery evaluation.
+- Weak-topic identification.
+- Adaptive learning.
+- Learning-duration recommendations.
+- Continuous learning.
+- Project-related learning recommendations.
+
+It consumes available time from the Schedule Management layer.
+
+It decides what I should learn and recommends the required duration.
+
+It must not directly modify fixed timetable commitments.
+
+## LAYER 3 — CAREER GROWTH AND OUTCOMES
+
+Responsible for:
+
+- Placement readiness.
+- GATE progress.
+- Competitive programming progress.
+- Technical skill development.
+- Japanese proficiency.
+- English communication.
+- Portfolio development.
+- Projects.
+- Resume readiness.
+- Interview readiness.
+- Career milestones.
+- Skill-gap analysis.
+
+This layer evaluates whether my learning is contributing to my long-term goals.
+
+It must use verified evidence from the Learning Intelligence layer, such as:
+
+- Assessment scores.
+- Demonstrated mastery.
+- Coding performance.
+- Completed practical exercises.
+- Retention results.
+- Project outcomes.
+- Revision performance.
+
+It identifies skill gaps and sends recommendations to the Learning Intelligence layer.
+
+It must not directly modify timetable templates or date-wise schedule assignments.
+
+## Communication between the layers
+
+Implement this flow through explicit services, interfaces, and data contracts:
+
+1. Schedule Management publishes the selected daily mode, availability, and constraints.
+2. Learning Intelligence receives this information.
+3. Learning Intelligence selects the appropriate learning topics and recommends durations.
+4. Schedule Management validates those recommendations against available slots and fixed commitments.
+5. Learning Intelligence records actual learning, assessment, and mastery evidence.
+6. Career Growth evaluates this verified evidence.
+7. Career Growth identifies skill gaps and sends recommendations to Learning Intelligence.
+8. Learning Intelligence updates priorities and learning roadmaps.
+9. Schedule Management receives the resulting session recommendations and allocates available time.
+
+Maintain loose coupling.
+
+Changing a timetable must not corrupt a roadmap.
+
+Changing a roadmap must not damage the timetable.
+
+Changing career priorities must not erase learning history.
+
+Build and test all three layers independently and test their integration.
+
+The dashboard must be a presentation layer, not the location of business logic.
+
+AI-provider integration must also remain independent of all three layers.
+
+---
+
+# 4. TIMETABLE MANAGEMENT
+
+Use the timetable image I provide as a reference for its actual schedule information, structure, activity names, time ranges, and information hierarchy.
+
+**IMPORTANT: Do not copy the image's colour palette, visual theme, styling, or appearance. Create a completely new professional UI.**
+
+Reproduce the timetable information accurately.
+
+If the image is unavailable or unreadable, do not invent missing information. Ask me to provide the image again when necessary.
+
+## MODE 1 — WORKING DAY
+
+Use this as the initial Working Day template.
+
+| Time | Activity |
+|---|---|
+| 5:00–5:10 AM | Wake up and freshen up |
+| 5:10–5:40 AM | Workout |
+| 5:40–6:10 AM | Walking |
+| 6:10–6:35 AM | Bath and get ready |
+| 6:35–6:40 AM | Transition and preparation |
+| 6:40–6:55 AM | Extra study / revision |
+| 6:55–7:00 AM | College arrival buffer |
+| 7:00 AM–5:00 PM | College and travel |
+| 5:00–5:30 PM | Refresh and snacks |
+| 5:30–6:15 PM | DSA / Coding |
+| 6:15–6:25 PM | Break |
+| 6:25–7:10 PM | GATE preparation |
+| 7:10–7:40 PM | Japanese |
+| 7:40–8:00 PM | Dinner |
+| 8:00–8:25 PM | English speaking |
+| 8:25–9:10 PM | College academics |
+| 9:10–9:40 PM | Development / technical learning |
+| 9:40–9:50 PM | Review and plan |
+| 9:50–10:00 PM | Prepare for sleep |
+| 10:00 PM–5:00 AM | Sleep |
+
+### Working Day constraints
+
+- Wake-up time: 5:00 AM.
+- Sleep time: 10:00 PM.
+- Protect at least seven hours of sleep.
+- College and travel: 7:00 AM–5:00 PM.
+- College arrival buffer: exactly five minutes.
+- Workout and walking: one hour combined.
+- Additional college academics: maximum 60 minutes per day.
+- Morning revision: 15 minutes.
+- Evening college academics: 45 minutes.
+- Breakfast is consumed during college hours; do not create a separate home breakfast slot.
+- Do not schedule independent learning during college or travel unless I explicitly enable it.
+- Preserve the above timetable as an editable template.
+- Do not silently change the 60-minute academic limit.
+
+## MODE 2 — HOLIDAY
+
+Use this as the initial Holiday template.
+
+| Time | Activity |
+|---|---|
+| 6:00–6:15 AM | Wake up and freshen up |
+| 6:15–6:45 AM | Workout |
+| 6:45–7:15 AM | Walking |
+| 7:15–8:00 AM | Bath and personal time |
+| 8:00–9:30 AM | DSA / Problem solving |
+| 9:30–9:45 AM | Break |
+| 9:45–11:15 AM | GATE preparation |
+| 11:15–11:30 AM | Break |
+| 11:30 AM–12:30 PM | Development / New technology |
+| 12:30–1:30 PM | Lunch and relaxation |
+| 1:30–2:30 PM | GATE PYQs / Revision |
+| 2:30–3:00 PM | Rest |
+| 3:00–3:45 PM | Japanese |
+| 3:45–4:15 PM | English speaking |
+| 4:15–5:15 PM | Project development |
+| 5:15–6:30 PM | Free time |
+| 6:30–7:30 PM | College academics |
+| 7:30–8:00 PM | Dinner |
+| 8:00–8:30 PM | Weekly revision |
+| 8:30–9:30 PM | Personal time |
+| 9:30–10:00 PM | Prepare for next day |
+| 10:00 PM–6:00 AM | Sleep |
+
+### Holiday constraints
+
+- Wake-up: 6:00 AM.
+- Sleep: 10:00 PM.
+- Protect eight hours of sleep.
+- Workout and walking: one hour.
+- College academics: one hour.
+- Weekly revision: separate 30-minute session.
+- Preserve meals, breaks, and free time.
+- Do not automatically fill every available free period with learning.
+
+## MODE 3 — EXAM MODE
+
+Create a dedicated Exam Mode.
+
+It must support:
+
+- Exam start and end dates.
+- Multiple examinations.
+- Subject selection.
+- Unit-wise syllabus.
+- Examination timetable input.
+- Preparation priorities.
+- Previous Year Questions.
+- Mock tests.
+- Important concepts.
+- Weak-topic revision.
+- Daily revision plans.
+- Remaining-days countdown.
+
+When Exam Mode is activated:
+
+- Temporarily prioritise examination preparation.
+- Adapt DSA, development, GATE, Japanese, and other sessions appropriately.
+- Do not automatically delete learning progress.
+- Protect sleep, exercise, meals, and essential breaks.
+- Preserve the exact previous timetable and learning priorities.
+- Restore the previous configuration after Exam Mode ends.
+
+Exam Mode must not silently override existing date assignments. Resolve overlapping assignments through a clear user decision.
+
+---
+
+# 5. DETAILED MODE CHANGING AND CALENDAR SYSTEM
+
+This feature is extremely important.
+
+Create a prominent, clearly visible **CHANGE DAILY MODE** button or dashboard card.
+
+When clicked, open a detailed mode management interface.
+
+It must display three distinct mode cards:
+
+1. Working Day.
+2. Holiday.
+3. Exam Mode.
+
+Each card should contain:
+
+- Mode name.
+- Short description.
+- Relevant icon.
+- Colour identity.
+- Timetable preview.
+- Wake-up and sleep time.
+- Total learning time.
+- Important constraints.
+- Current assigned status.
+
+The user must be able to:
+
+- Select one date.
+- Select multiple dates.
+- Assign a date range.
+- Change an existing date assignment.
+- Remove an assignment.
+- Preview the resulting timetable.
+- See the previously assigned mode.
+- Confirm or cancel changes.
+
+Before saving, display a confirmation summary containing:
+
+- Selected date or dates.
+- Previous mode.
+- New mode.
+- Number of affected dates.
+
+Provide Save and Cancel actions.
+
+## Calendar requirements
+
+Build a complete calendar-based mode management system.
+
+Include:
+
+- Month view.
+- Week view.
+- Day view.
+- Previous and next month navigation.
+- Year navigation.
+- Upcoming holiday view.
+- Upcoming working day view.
+- Exam period visibility.
+- Date-wise mode indicators.
+- Editing existing assignments.
+
+**Never assume that Monday to Friday are automatically Working Days or that weekends are automatically Holidays.**
+
+I will choose the mode for each date.
+
+The initial default mode must be Working Day.
+
+If a date has no explicit assignment, use the configured default mode and clearly indicate that it is the default.
+
+Changing one date must not change other dates or the original timetable templates.
+
+## Holiday import
+
+Provide two methods:
+
+1. Manual date selection.
+2. Import dates from a file.
+
+Support practical formats such as CSV and Excel where feasible.
+
+After importing:
+
+- Parse the dates.
+- Show the imported dates.
+- Identify duplicates.
+- Identify invalid entries.
+- Display the proposed changes.
+- Require my manual confirmation before applying the dates.
+
+Never automatically change my calendar simply because a file was imported.
+
+---
+
+# 6. AI LEARNING ROADMAP ENGINE
+
+This is the central intelligence of the application.
+
+I should select my goals, and the AI should generate the learning roadmap.
+
+For each goal, create:
+
+- Learning stages.
+- Topics and subtopics.
+- Prerequisites.
+- Estimated durations.
+- Learning objectives.
+- Exercises.
+- Assessments.
+- Practical tasks.
+- Revision requirements.
+- Mastery criteria.
+- Recommended projects.
+
+The AI must automatically determine the next topic based on:
+
+- Current mastery.
+- Previous mistakes.
+- Prerequisites.
+- Retention.
+- Upcoming deadlines.
+- Available learning time.
+- Current timetable mode.
+- Career priorities.
+
+## Syllabus management
+
+Distinguish clearly between:
+
+1. Official syllabus.
+2. Curated industry roadmap.
+3. AI-generated lesson plans.
+
+For official syllabuses, use authoritative sources.
+
+For GATE, use official GATE information.
+
+For JLPT, distinguish authoritative examination information from curated preparation content.
+
+For Full-Stack, Cybersecurity, AI/ML, DSA, and English, maintain curated learning roadmaps based on credible resources and current industry requirements.
+
+## Automatic syllabus updates
+
+The AI should periodically check trusted sources for:
+
+- Syllabus changes.
+- Updated technologies.
+- New tools.
+- Important industry developments.
+- Outdated learning material.
+- Relevant changes in career expectations.
+
+Maintain:
+
+- Source references.
+- Last checked date.
+- Version history.
+- Change descriptions.
+- Affected topics.
+- Recommended updates.
+
+Automatically apply minor improvements, such as improved resources or small content corrections.
+
+For major changes that alter the roadmap, explain the change and request my approval.
+
+Preserve my completed topics, assessments, and mastery history when a syllabus changes.
+
+Never falsely label AI-generated recommendations as official syllabus requirements.
+
+## Continuous learning
+
+There must not be an artificial endpoint.
+
+When I finish the initial roadmap:
+
+1. Assess my actual understanding.
+2. Identify advanced knowledge gaps.
+3. Recommend advanced topics.
+4. Introduce specialisations.
+5. Recommend practical projects.
+6. Include relevant industry developments.
+7. Continue improving my skills.
+
+Completion of the initial syllabus must not mean that learning is permanently finished.
+
+---
+
+# 7. ACTUAL AI TUTOR AND LEARNING EXPERIENCE
+
+Do not make the AI tutor a generic chatbot.
+
+Build a structured teaching experience.
+
+Each learning session should support:
+
+1. Concept introduction.
+2. Simple explanation.
+3. Real-world analogy.
+4. Worked example.
+5. Step-by-step demonstration.
+6. Guided exercise.
+7. Independent exercise.
+8. Quiz or assessment.
+9. Mistake analysis.
+10. Revision recommendation.
+
+For programming topics, include:
+
+- Code examples.
+- Line-by-line explanations.
+- Dry runs.
+- Test cases.
+- Debugging exercises.
+- Coding challenges.
+- Complexity analysis when relevant.
+
+For theoretical topics, include:
+
+- Clear definitions.
+- Concept explanations.
+- Examples.
+- Comparisons.
+- Diagrams where useful.
+- Application-based questions.
+
+The tutor must adapt its teaching style to my actual performance.
+
+## Mastery engine
+
+Track:
+
+- Topic started.
+- Topic completed.
+- Assessment attempts.
+- Correct and incorrect answers.
+- Mistake categories.
+- Understanding level.
+- Retention.
+- Practical performance.
+- Mastery status.
+
+Use spaced repetition and periodic retention assessments.
+
+Do not mark a topic mastered simply because I spent the allocated time or clicked Complete.
+
+Mastery should require suitable evidence.
+
+Avoid repeating topics I have already mastered unless a retention assessment shows that revision is needed.
+
+---
+
+# 8. PROJECT RECOMMENDATION ENGINE
+
+Recommend practical projects based on my actual skills.
+
+Project categories:
+
+- Beginner.
+- Intermediate.
+- Advanced.
+- Portfolio-ready.
+
+For each recommendation, provide:
+
+- Project objective.
+- Problem being solved.
+- Required skills.
+- Technology stack.
+- Prerequisites.
+- Feature breakdown.
+- Development stages.
+- Testing requirements.
+- Completion criteria.
+- Portfolio value.
+
+Track project states:
+
+- Recommended.
+- Planned.
+- In progress.
+- Completed.
+- Archived.
+
+Do not recommend projects beyond my current ability without identifying the skills I need first.
+
+Use completed project results as additional evidence of my practical mastery.
+
+Avoid repeatedly recommending nearly identical projects.
+
+---
+
+# 9. AI PERSONAL COACH
+
+Create an AI coach that understands my application data.
+
+It must have access to relevant information such as:
+
+- My goals.
+- Selected timetable mode.
+- Today's schedule.
+- Current active skill.
+- Learning roadmaps.
+- Completed topics.
+- Weak areas.
+- Assessment results.
+- Projects.
+- Upcoming examinations.
+- Missed sessions.
+- Progress history.
+
+Example questions it should answer:
+
+- What should I study today?
+- Why is this my next topic?
+- What did I struggle with yesterday?
+- Am I ready to move to the next stage?
+- What should I revise today?
+- How can I recover a missed session?
+- How am I progressing towards placement?
+- What should I focus on this week?
+- Explain this concept.
+- Give me a practice test.
+- Plan tomorrow based on my current progress.
+
+The coach should provide context-aware responses rather than generic advice.
+
+Support voice interaction where technically feasible.
+
+If AI integration is unavailable, provide a clearly identified rule-based fallback. Do not present a fallback as a functioning AI integration.
+
+---
+
+# 10. MISSED SESSION RECOVERY
+
+Build an intelligent missed-session recovery system.
+
+When a session is missed:
+
+1. Record it as missed, not completed.
+2. Determine its importance.
+3. Check the remaining available time.
+4. Check deadlines and prerequisites.
+5. Decide whether to reschedule, shorten, postpone, or replace the session.
+6. Explain important changes.
+7. Preserve the rest of the schedule wherever possible.
+
+Never shift every subsequent session automatically.
+
+Never sacrifice:
+
+- Sleep.
+- Meals.
+- Exercise.
+- College commitments.
+- Essential breaks.
+
+Do not create an overwhelming backlog.
+
+The system should distinguish between an occasional missed session and a repeated learning difficulty.
+
+If I repeatedly struggle with a topic, the AI should reconsider the teaching approach, prerequisites, and difficulty.
+
+---
+
+# 11. CAREER GROWTH AND PLACEMENT READINESS
+
+Create a dedicated career dashboard.
+
+## Placement readiness
+
+Track:
+
+- DSA competency.
+- Coding interview performance.
+- Aptitude.
+- Core CS fundamentals.
+- Technical projects.
+- Resume.
+- Portfolio.
+- Communication.
+- Mock interviews.
+
+Show readiness indicators based on verified evidence.
+
+Do not create arbitrary percentages that have no measurable basis.
+
+## GATE progress
+
+Show:
+
+- Subject completion.
+- Topic mastery.
+- PYQ performance.
+- Mock scores.
+- Accuracy.
+- Weak subjects.
+- Revision status.
+
+## Competitive programming
+
+Track:
+
+- Problems solved.
+- Difficulty levels.
+- Problem patterns.
+- Mistakes.
+- Contest history.
+- Rating or performance where data is available.
+- Areas requiring practice.
+
+## Language development
+
+Track Japanese and English separately.
+
+For Japanese:
+
+- Vocabulary.
+- Grammar.
+- Reading.
+- Listening.
+- Practice tests.
+- JLPT readiness.
+
+For English:
+
+- Speaking practice.
+- Pronunciation.
+- Vocabulary.
+- Grammar.
+- Listening.
+- Communication assessments.
+- Interview communication.
+
+## Portfolio and resume
+
+Connect demonstrated skills, completed projects, achievements, and practical experience to a portfolio and career profile.
+
+---
+
+# 12. DASHBOARD AND ANALYTICS
+
+Build a useful dashboard that answers:
+
+- What is today's plan?
+- Which mode is assigned today?
+- What is the next learning session?
+- What should I focus on?
+- What is my current active skill?
+- How much progress have I made?
+- Which topics need attention?
+- What are my upcoming deadlines?
+
+Include:
+
+- Daily completion.
+- Weekly performance.
+- Monthly performance.
+- Focused learning time.
+- Topic mastery.
+- Revision status.
+- Weak areas.
+- Roadmap progression.
+- Project progress.
+- Career readiness.
+- Consistency and streaks.
+
+## Weekly AI report
+
+Generate a report covering:
+
+- Topics learned.
+- Topics completed.
+- Assessments.
+- Strengths.
+- Weaknesses.
+- Repeated mistakes.
+- Revision needs.
+- Consistency.
+- Progress towards goals.
+- Recommended next steps.
+
+Gamification should reward genuine learning and consistency, not merely the number of hours spent.
+
+Include a focus/Pomodoro timer, achievements, notes, and learning logs.
+
+---
+
+# 13. NOTIFICATIONS AND REMINDERS
+
+Provide configurable notifications for:
+
+- Upcoming learning sessions.
+- Revision.
+- Assessments.
+- Examinations.
+- Missed sessions.
+- Weekly reports.
+- Important syllabus updates.
+
+Allow me to control:
+
+- Reminder timing.
+- Notification categories.
+- Quiet hours.
+- Enable/disable preferences.
+
+Avoid excessive notifications.
+
+---
+
+# 14. OFFLINE SUPPORT, CLOUD SYNC AND BACKUP
+
+Build a web application with PWA capabilities.
+
+Requirements:
+
+- Cloud data persistence.
+- Offline access to appropriate application features.
+- Local data storage.
+- Safe synchronisation.
+- Conflict detection.
+- Conflict resolution.
+- Backup.
+- Restore.
+- Account-based data access.
+
+If an action occurs offline, preserve the change locally and synchronise when connectivity returns.
+
+Never silently overwrite newer data with older offline changes.
+
+Maintain separation between:
+
+- Timetable templates.
+- Date-wise assignments.
+- Actual session history.
+- Learning progress.
+- Assessments.
+- Mastery.
+- Career records.
+
+Changing a schedule must not erase historical learning records.
+
+---
+
+# 15. UI/UX DESIGN — IMPORTANT PRODUCT REQUIREMENT
+
+Design a professional, vivid, modern SaaS application with a strong visual identity.
+
+**Do not copy the attached timetable image's design or colours.**
+
+The image is only a reference for timetable content and structure.
+
+I want a polished application that feels like a premium productivity and learning platform.
+
+## Chosen visual direction
+
+Use a **premium light-first design with coordinated vivid colours**.
+
+Suggested visual palette:
+
+- Primary: Royal blue.
+- Secondary: Violet.
+- Success and progress: Emerald green.
+- Exams and important deadlines: Coral/orange.
+- Fitness and wellness: Teal.
+- Main background: Soft white or very light neutral grey.
+- Cards: White with subtle shadows and refined borders.
+- Text: Deep charcoal or dark navy.
+
+Use colour meaning consistently across the application.
+
+Do not make every card a different random colour.
+
+Use a restrained, coordinated palette with strong visual hierarchy.
+
+Provide an optional dark theme using the same design language.
+
+## Design principles
+
+- Modern SaaS aesthetic.
+- Professional and vibrant.
+- Clean typography.
+- Strong information hierarchy.
+- Generous spacing.
+- Consistent component system.
+- Rounded cards with restrained shadows.
+- Clear navigation.
+- Smooth, subtle transitions.
+- Beautiful charts.
+- Useful empty states.
+- Responsive layouts.
+- Accessible colour contrast.
+- Consistent icons.
+- Polished loading and error states.
+
+Avoid:
+
+- Excessive gradients.
+- Neon overload.
+- Childish illustrations.
+- Cluttered dashboards.
+- Too many colours competing for attention.
+- Excessive animations.
+- Tiny text.
+- Unnecessary decorative elements.
+- Generic unstyled admin dashboards.
+
+## Recommended application navigation
+
+Create a clean desktop sidebar with:
+
+1. Dashboard.
+2. My Timetable.
+3. Change Daily Mode.
+4. Calendar.
+5. Learning Roadmap.
+6. Today's Learning.
+7. AI Tutor.
+8. Projects.
+9. Career Growth.
+10. Analytics.
+11. AI Coach.
+12. Settings.
+
+Use a responsive navigation system on smaller screens.
+
+## Dashboard layout
+
+The dashboard should have a carefully designed visual hierarchy.
+
+Suggested structure:
+
+**Top section**
+- Greeting.
+- Current date.
+- Today's selected mode.
+- Notifications.
+- Profile/settings.
+
+**Main focus section**
+- Today's priority.
+- Next learning session.
+- Current active skill.
+- Start Learning action.
+
+**Schedule section**
+- Today's timetable.
+- Current/upcoming session indicator.
+- Clear colour-coded activities.
+- Quick timetable access.
+
+**Progress section**
+- Weekly learning progress.
+- Roadmap progress.
+- Mastery overview.
+- Placement readiness.
+
+**Additional section**
+- Upcoming exams.
+- Revision reminders.
+- Project progress.
+- AI coach insights.
+
+Do not place every possible metric on the first screen.
+
+Prioritise the information that helps me take action today.
+
+## Timetable interface
+
+The timetable must be easy to read and edit.
+
+Include:
+
+- Clear time labels.
+- Colour-coded activities.
+- Activity duration.
+- Fixed/flexible indicators.
+- Current activity indicator.
+- Upcoming activity indicator.
+- Daily and weekly views.
+- Edit and preview actions.
+
+Make the timetable's information hierarchy faithful to the supplied reference while using the new visual system.
+
+## Mode management interface
+
+Make the Change Daily Mode experience especially polished.
+
+Use three visually distinct cards with:
+
+- Mode name.
+- Icon.
+- Description.
+- Timetable preview.
+- Sleep duration.
+- Learning allocation.
+- Current selection indicator.
+
+The calendar should visually show date assignments and mode colours.
+
+Make confirmation before saving clear and understandable.
+
+## Learning interface
+
+Design a distraction-free learning workspace.
+
+Include:
+
+- Current subject/topic.
+- Lesson objectives.
+- Progress indicator.
+- Teaching content.
+- Examples.
+- Exercises.
+- Notes.
+- Assessment.
+- AI tutor access.
+- Mark complete action.
+
+Do not turn the learning screen into a crowded dashboard.
+
+## Visual quality requirement
+
+The application should feel like a carefully designed commercial product, not a hackathon prototype.
+
+Use reusable design tokens and a consistent component library.
+
+Create polished desktop, tablet, and mobile layouts.
+
+Do not sacrifice usability for visual effects.
+
+---
+
+# 16. TECHNICAL ARCHITECTURE AND IMPLEMENTATION
+
+Choose a reliable, maintainable technology stack based on the actual environment.
+
+A suitable starting direction is:
+
+- React.
+- TypeScript.
+- A modern build tool.
+- Responsive component system.
+- Supabase/PostgreSQL for cloud persistence and authentication.
+- IndexedDB for offline persistence.
+- PWA support.
+- Secure server-side AI integration.
+- A provider-independent AI abstraction.
+
+You may select better alternatives if justified.
+
+Inspect the environment before deciding.
+
+## Technical requirements
+
+- Authentication.
+- Secure user data isolation.
+- Database migrations.
+- Input validation.
+- Error handling.
+- Logging.
+- Background jobs where required.
+- API abstraction.
+- Offline persistence.
+- Cloud synchronisation.
+- Testing.
+- Documentation.
+
+Never expose API keys in frontend code.
+
+Never commit secrets.
+
+Never claim that an external integration is working unless it has actually been configured and tested.
+
+## AI provider architecture
+
+Use a provider-independent architecture.
+
+Allow multiple AI providers to be integrated or switched later.
+
+Prioritise free-tier or low-cost options.
+
+Do not make the entire application dependent on one provider.
+
+If credentials are missing:
+
+- Build the integration interface.
+- Implement safe configuration handling.
+- Provide a clearly identified fallback.
+- Continue building all independent features.
+- Document what credentials are needed.
+
+Do not falsely represent mock AI responses as real AI responses.
+
+## Suggested data domains
+
+Design a clean database model for:
+
+- Users.
+- User preferences.
+- Goals.
+- Timetable templates.
+- Activities.
+- Date-wise mode assignments.
+- Holidays.
+- Exams.
+- Subjects.
+- Syllabus versions.
+- Roadmaps.
+- Stages.
+- Topics.
+- Prerequisites.
+- Learning sessions.
+- Session history.
+- Assessments.
+- Answers.
+- Mastery records.
+- Revision schedules.
+- Projects.
+- Project progress.
+- AI conversations.
+- Notifications.
+- Weekly reports.
+- Source registry.
+- Source-check history.
+- Placement preparation.
+- Competitive programming records.
+- Language assessments.
+- Portfolio records.
+
+Keep the three main layers logically independent even if they share infrastructure.
+
+Use appropriate foreign keys, constraints, indexes, and access controls.
+
+---
+
+# 17. AUTONOMOUS DEVELOPMENT INSTRUCTIONS
+
+You must execute the complete project development process.
+
+Do not stop after providing a plan.
+
+Do not wait for approval between ordinary development phases.
+
+Ask me only when an essential decision, missing asset, credential, paid service, or irreversible operation genuinely requires my input.
+
+## Step 0 — Inspect and plan
+
+- Inspect the repository.
+- Identify the available environment and tools.
+- Check whether a project already exists.
+- Inspect the supplied timetable image.
+- Extract the actual timetable information.
+- Identify technical dependencies.
+- Design the architecture.
+- Create a detailed implementation plan.
+- Create PROJECT_PROGRESS.md.
+
+If the project is empty, initialise it appropriately.
+
+If an existing project is present, preserve useful working functionality.
+
+## Step 1 — Foundation
+
+Build:
+
+- Application foundation.
+- Authentication.
+- Database setup.
+- Main navigation.
+- Shared UI components.
+- Design tokens.
+- Theme support.
+- Error handling.
+
+## Step 2 — Timetable engine
+
+Build:
+
+- Working Day template.
+- Holiday template.
+- Exam Mode template.
+- Activity management.
+- Fixed/flexible activity rules.
+- Timetable rendering.
+- Editing and persistence.
+
+## Step 3 — Mode manager and calendar
+
+Build:
+
+- Detailed mode selection.
+- Calendar.
+- Date-wise assignments.
+- Multiple-date selection.
+- Date ranges.
+- Holiday import.
+- Manual confirmation.
+- Conflict handling.
+
+## Step 4 — Exam Mode
+
+Build examination configuration, exam timetable, preparation planning, revision, and automatic restoration of the previous configuration.
+
+## Step 5 — Learning roadmaps
+
+Build goal selection, syllabus structures, prerequisite handling, roadmap generation, topic progression, and scheduling recommendations.
+
+## Step 6 — AI tutor and mastery
+
+Build teaching, exercises, assessments, mistake analysis, revision, spaced repetition, and mastery tracking.
+
+## Step 7 — Syllabus updates
+
+Build trusted-source management, periodic checks, change detection, versioning, and approval for major roadmap changes.
+
+## Step 8 — AI coach and recovery
+
+Build context-aware AI conversations, daily recommendations, missed-session recovery, and adaptive learning.
+
+## Step 9 — Projects, analytics and career growth
+
+Build project recommendations, placement readiness, GATE tracking, competitive programming tracking, language development, portfolio records, and reports.
+
+## Step 10 — Notifications and offline support
+
+Build notifications, preferences, offline functionality, sync, conflict resolution, backup, and restore.
+
+## Step 11 — Platform readiness
+
+Make the web application responsive and PWA-ready.
+
+Keep the architecture suitable for future Android and Windows applications without pretending those native applications are already delivered.
+
+## Step 12 — Final QA and release
+
+Run functional, integration, security, and responsive tests.
+
+Fix critical problems before declaring completion.
+
+These steps are one continuous development assignment. Do not stop after any individual step.
+
+---
+
+# 18. PROGRESS TRACKING AND RESUMABILITY
+
+Maintain a file named PROJECT_PROGRESS.md.
+
+Update it throughout development.
+
+It must include:
+
+- Project overview.
+- Architecture.
+- Current development phase.
+- Completed phases.
+- Incomplete tasks.
+- Implemented features.
+- Tests executed.
+- Test results.
+- Known bugs.
+- Integration status.
+- Missing credentials.
+- Environment configuration.
+- Next actions.
+
+After each phase:
+
+1. Test the implemented functionality.
+2. Fix critical failures.
+3. Update documentation.
+4. Update PROJECT_PROGRESS.md.
+5. Continue to the next phase.
+
+If your session ends or context is lost, inspect PROJECT_PROGRESS.md and the actual repository state, then resume from the last verified checkpoint.
+
+Do not assume that a task is complete merely because it appears in the progress file. Verify the implementation.
+
+---
+
+# 19. QUALITY AND ACCEPTANCE TESTS
+
+The application is not complete until these areas have been implemented and tested.
+
+### Timetable tests
+- Correct Working Day timetable.
+- Correct Holiday timetable.
+- Correct Exam Mode.
+- Correct activity durations.
+- Fixed commitments protected.
+- Academic time limits respected.
+- Sleep constraints respected.
+- Timetable editing persists.
+
+### Mode and calendar tests
+- Default Working Day mode.
+- Individual date assignments.
+- Multiple date assignments.
+- Date ranges.
+- Mode changes affect only selected dates.
+- Templates remain unchanged.
+- Holiday file import.
+- Manual confirmation before imported dates are applied.
+- Conflict handling.
+- Calendar navigation.
+
+### Learning intelligence tests
+- Goal-based roadmap creation.
+- Prerequisite sequencing.
+- Topic selection based on mastery.
+- Learning duration recommendations.
+- One active main skill track.
+- Assessment tracking.
+- Weakness identification.
+- Revision scheduling.
+- Continuous learning after initial completion.
+
+### AI tutor tests
+- Teaching content.
+- Exercises.
+- Assessment.
+- Incorrect-answer analysis.
+- Mastery updates.
+- Context retention where supported.
+- Correct distinction between real AI and fallback.
+
+### Career growth tests
+- Placement tracking.
+- GATE tracking.
+- Competitive programming.
+- Japanese.
+- English.
+- Project evidence.
+- Career recommendations.
+
+### Recovery tests
+- Missed session recording.
+- Rescheduling.
+- Shortening or postponement.
+- No cascading timetable damage.
+- No sleep or health compromise.
+
+### Data and platform tests
+- Authentication.
+- User data isolation.
+- Database persistence.
+- Offline access.
+- Sync.
+- Conflict resolution.
+- Backup and restore.
+- Responsive layout.
+- PWA installation readiness.
+
+### Architecture tests
+- Each of the three layers can be tested independently.
+- Interfaces between layers work correctly.
+- No prohibited cross-layer business logic.
+- Timetable changes do not damage learning progress.
+- Learning changes do not corrupt timetable assignments.
+- Career changes do not erase historical evidence.
+
+---
+
+# 20. FINAL DELIVERY REQUIREMENTS
+
+At the end, provide a clear implementation report containing:
+
+1. Features successfully implemented.
+2. Features not implemented and why.
+3. Architecture and three-layer separation.
+4. Technology stack.
+5. Database structure.
+6. AI provider integration status.
+7. Offline and cloud sync status.
+8. Tests executed and their results.
+9. Known limitations.
+10. Required environment variables and credentials.
+11. Local development instructions.
+12. Production build instructions.
+13. Deployment instructions.
+14. Location of project documentation.
+15. Remaining work, if any.
+
+Provide actual test results, not assumptions.
+
+Do not claim the application is production-ready if critical features remain incomplete.
+
+---
+
+# FINAL INSTRUCTIONS
+
+Build this as a complete, connected AI Personal Learning Manager—not as separate disconnected feature demos.
+
+The three independent layers are mandatory.
+
+The AI must make routine learning decisions autonomously.
+
+The schedule must respect my actual selected daily mode and personal constraints.
+
+The UI must follow the new premium, professional, vivid SaaS visual direction. The supplied timetable image must guide the schedule content and information structure only, never the visual theme.
+
+Preserve my progress, protect my time and health, and build a system that can support my development until graduation and beyond.
+
+**Do not stop at planning. Do not stop at the first working dashboard. Continue implementing, testing, fixing, and documenting the entire application until all feasible requirements are completed and verified.**
