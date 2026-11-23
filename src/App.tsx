@@ -756,7 +756,7 @@ export default function App() {
       });
       const data = await response.json();
       if (data.snapshot) {
-        const migrated = migrateWorkspaceCurriculum(data.snapshot);
+        const migrated = migrateWorkspaceCurriculum({ ...data.snapshot, updatedAt: new Date().toISOString() });
         setWorkspace(migrated);
         saveLocalWorkspaceState(migrated);
         setConflict(null);
@@ -1212,9 +1212,7 @@ export default function App() {
                 }))
               }
               onImportWorkspaceJson={(restored) => {
-                const migrated = migrateWorkspaceCurriculum(restored);
-                setWorkspace(migrated);
-                saveLocalWorkspaceState(migrated);
+                persistWorkspace(() => migrateWorkspaceCurriculum(restored));
               }}
             />
           )}

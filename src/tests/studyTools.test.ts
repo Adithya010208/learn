@@ -5,6 +5,7 @@ import { INITIAL_ROADMAPS } from '../layers/layer2Learning.ts';
 import { applySharedCredit, weekSummary } from '../layers/studyTools.ts';
 import { buildStudyPlan } from '../layers/studyPlan.ts';
 import { answerStudyQuestion } from '../services/localStudyCoach.ts';
+import { createInitialWorkspaceState, freshestWorkspace } from '../services/offlineSync.ts';
 import { studyCalendar } from '../services/studyCalendar.ts';
 import type { ScheduledLearningRecommendation } from '../types/domain.ts';
 
@@ -77,4 +78,18 @@ test('coach fallback uses only actual scheduled topics without an AI provider or
   assert.equal(result.onDevice, false);
   assert.match(result.text, /Run your first Java program/);
   assert.match((await answerStudyQuestion('What should I do?', [], [])).text, /no remaining scheduled sessions/);
+});
+
+test('reload selects the latest saved copy even when IndexedDB has not caught up', () => {
+  const original = createInitialWorkspaceState();
+  const indexed = { ...original, version: 5, updatedAt: '2027-01-05T08:00:00.000Z' };
+  const local = {
+    ...original,
+    version: 6,
+    updatedAt: '2027-01-05T08:01:00.000Z',
+    settings: { ...original.settings, studyTools: { shortDays: { [date]: true } } },
+  };
+  assert.equal(freshestWorkspace(indexed, local), local);
+  assert.equal(freshestWorkspace(local, indexed), local);
+  assert.equal(freshestWorkspace(undefined, local), local);
 });

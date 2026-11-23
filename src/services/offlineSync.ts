@@ -274,38 +274,48 @@ export function migrateWorkspaceCurriculum(state: PersistedWorkspaceState): Pers
   };
 }
 
+export function freshestWorkspace(
+  indexed: PersistedWorkspaceState | undefined,
+  local: PersistedWorkspaceState | undefined,
+): PersistedWorkspaceState | undefined {
+  if (!indexed) return local;
+  if (!local) return indexed;
+  const indexedTime = Date.parse(indexed.updatedAt) || 0;
+  const localTime = Date.parse(local.updatedAt) || 0;
+  return localTime > indexedTime || (localTime === indexedTime && local.version >= indexed.version) ? local : indexed;
+}
+
+function isWorkspace(value: PersistedWorkspaceState | undefined): value is PersistedWorkspaceState {
+  return Boolean(value?.layer1Schedule && value.layer2Learning && value.layer3Career && value.settings);
+}
+
 export async function loadLocalWorkspaceState(): Promise<PersistedWorkspaceState> {
+  let indexed: PersistedWorkspaceState | undefined;
+  let local: PersistedWorkspaceState | undefined;
   try {
     const db = await openIndexedDB();
     const record = await new Promise<PersistedWorkspaceState | undefined>((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, 'readonly');
-      const store = tx.objectStore(STORE_NAME);
-      const getReq = store.get(RECORD_KEY);
+      const getReq = tx.objectStore(STORE_NAME).get(RECORD_KEY);
       getReq.onsuccess = () => resolve(getReq.result as PersistedWorkspaceState | undefined);
       getReq.onerror = () => reject(getReq.error);
     });
-    if (record && record.layer1Schedule && record.layer2Learning && record.layer3Career) {
-      return migrateWorkspaceCurriculum(record);
-    }
+    if (isWorkspace(record)) indexed = record;
   } catch {
-    // Fallback to localStorage
+    // The copy in localStorage is read independently.
   }
-
   try {
     if (typeof window !== 'undefined') {
       const raw = window.localStorage.getItem(LS_FALLBACK_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as PersistedWorkspaceState;
-        if (parsed.layer1Schedule && parsed.layer2Learning) {
-          return migrateWorkspaceCurriculum(parsed);
-        }
-      }
+      const parsed = raw ? JSON.parse(raw) as PersistedWorkspaceState : undefined;
+      if (isWorkspace(parsed)) local = parsed;
     }
   } catch {
-    // Ignore parse errors
+    // IndexedDB still works if localStorage is unavailable.
   }
 
-  return createInitialWorkspaceState();
+  const saved = freshestWorkspace(indexed, local);
+  return saved ? migrateWorkspaceCurriculum(saved) : createInitialWorkspaceState();
 }
 
 export async function saveLocalWorkspaceState(state: PersistedWorkspaceState): Promise<void> {

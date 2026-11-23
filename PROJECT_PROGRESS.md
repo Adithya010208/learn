@@ -6,7 +6,7 @@ The coach runs on compatible desktop Chrome's on-device model, with deterministi
 
 Vercel uses the pinned npm lockfile, a Vite static build, and a function adapter for optional authenticated cloud sync. The local planner requires no environment variables. See README.md for deployment instructions.
 
-Verification includes a 60-day scheduling simulation with repeatedly restored history, calendar generation, cap and shared-credit checks, and production build and API checks. The configured cloud database and actual Gemini Nano model require their own environment and were not exercised by the automated suite.
+An immediate reload selects the latest local save even when the IndexedDB write is still catching up. All 22 tests passed. Verification includes a 60-day scheduling simulation with repeatedly restored history, calendar generation, cap and shared-credit checks, and production build and API checks. The configured cloud database and actual Gemini Nano model require their own environment and were not exercised by the automated suite.
 
 
 ## Earlier beginner update
