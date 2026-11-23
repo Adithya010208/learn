@@ -169,9 +169,11 @@ test('Layer 2: Evidence-based Mastery Engine requires quiz >= 80% AND practical 
 
   // Verify Continuous Learning unlocks when all topics in a roadmap reach MASTERED
   const dsaRoadmap = structuredClone(INITIAL_ROADMAPS.find((r) => r.goalId === 'dsa_cp')!);
-  masteryMap['dsa-basics-arrays-complexity'].status = 'MASTERED';
-  masteryMap['dsa-sliding-window-monotonic'].status = 'MASTERED';
-  masteryMap['dsa-trees-lca-dp'] = withPractical;
+  for (const topic of dsaRoadmap.topics) {
+    masteryMap[topic.id] = evaluateAssessmentAndMastery(
+      undefined, topic.id, topic.goalId, 2, 2, [], true, '2026-11-15',
+    );
+  }
 
   const unlocked = checkAndUnlockContinuousLearning(dsaRoadmap, masteryMap);
   assert.equal(unlocked.unlockedNewSpecialization, true);
@@ -203,13 +205,13 @@ test('Layer 2 & Layer 3 Integration: Complete Beginner From-Scratch Schedule -> 
 
   // Verify that DSA, Full-Stack, GATE, and Japanese all schedule their Stage 1 From-Scratch Beginner topic first!
   const dsaSession = sessions.find((s) => s.goalId === 'dsa_cp')!;
-  assert.equal(dsaSession.topicId, 'dsa-basics-arrays-complexity');
+  assert.equal(dsaSession.topicId, 'zero-dsa-first-program');
   const fsSession = sessions.find((s) => s.goalId === 'fullstack')!;
-  assert.equal(fsSession.topicId, 'fs-web-html-css-js-scratch');
+  assert.equal(fsSession.topicId, 'zero-fs-browser');
   const gateSession = sessions.find((s) => s.goalId === 'gate_cse')!;
-  assert.equal(gateSession.topicId, 'gate-foundations-logic-dfa');
+  assert.equal(gateSession.topicId, 'zero-gate-numbers');
   const jpSession = sessions.find((s) => s.goalId === 'japanese')!;
-  assert.equal(jpSession.topicId, 'jp-hiragana-greetings-scratch');
+  assert.equal(jpSession.topicId, 'zero-jp-sounds');
 
   // Verify missed session recovery preserves sleep and fixed commitments
   const recovery = planMissedSessionRecovery(dsaSession, masteryMap[dsaSession.topicId], 'WORKING_DAY', 15);

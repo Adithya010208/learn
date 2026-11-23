@@ -1,3 +1,4 @@
+import { getMentorPlan } from '../layers/mentorPlan.ts';
 import React, { useState } from 'react';
 import {
   BookOpen,
@@ -9,7 +10,6 @@ import {
   Code2,
   FileText,
   HelpCircle,
-  RefreshCw,
   Award,
   ArrowRight,
   Clock,
@@ -22,11 +22,10 @@ import {
   SyllabusUpdateRecord,
   TopicMasteryRecord,
 } from '../types/domain.ts';
-import { arePrerequisitesMet } from '../layers/layer2Learning.ts';
 
 function formatSourceType(sourceType: LearningRoadmap['sourceType']): string {
-  if (sourceType === 'OFFICIAL_SYLLABUS') return 'Official Authoritative Syllabus';
-  if (sourceType === 'CURATED_ROADMAP') return 'Curated Industry Roadmap';
+  if (sourceType === 'OFFICIAL_SYLLABUS') return 'Official syllabus coverage';
+  if (sourceType === 'CURATED_ROADMAP') return 'Curated study roadmap';
   return 'AI-Generated Specialization Plan';
 }
 
@@ -36,25 +35,24 @@ function formatSourceType(sourceType: LearningRoadmap['sourceType']): string {
 export const RoadmapView: React.FC<{
   roadmaps: LearningRoadmap[];
   masteryRecords: Record<string, TopicMasteryRecord>;
+  completedTopicIds: ReadonlySet<string>;
   syllabusUpdates: SyllabusUpdateRecord[];
   activeMainSkill: 'fullstack' | 'cybersecurity' | 'ai_ml';
   onSwitchMainSkill: (skill: 'fullstack' | 'cybersecurity' | 'ai_ml') => void;
   onApproveSyllabusUpdate: (updateId: string, approve: boolean) => void;
-  onRunTrustedSourceCheck: () => void;
   onOpenTopicInTutor: (topicId: string) => void;
 }> = ({
   roadmaps,
   masteryRecords,
+  completedTopicIds,
   syllabusUpdates,
   activeMainSkill,
   onSwitchMainSkill,
   onApproveSyllabusUpdate,
-  onRunTrustedSourceCheck,
   onOpenTopicInTutor,
 }) => {
   const [selectedGoalId, setSelectedGoalId] = useState<GoalId>('placement');
   const [pendingSkillSwitch, setPendingSkillSwitch] = useState<'fullstack' | 'cybersecurity' | 'ai_ml' | null>(null);
-  const [sourceCheckFeedback, setSourceCheckFeedback] = useState<string | null>(null);
 
   const selectedRoadmap = roadmaps.find((r) => r.goalId === selectedGoalId) || roadmaps[0];
 
@@ -84,26 +82,7 @@ export const RoadmapView: React.FC<{
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            onRunTrustedSourceCheck();
-            setSourceCheckFeedback(
-              'Verified Official GATE 2026/2027 (IIT Roorkee), JLPT N5 (JEES), OWASP Top 10, and React 19 sources on 2026-11-15. All completed topics and mastery records preserved.'
-            );
-          }}
-          className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors whitespace-nowrap shrink-0"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-          Check Trusted Syllabus Sources
-        </button>
       </div>
-
-      {sourceCheckFeedback && (
-        <div role="status" className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl p-3.5 text-xs font-medium text-emerald-800 dark:text-emerald-300">
-          {sourceCheckFeedback}
-        </div>
-      )}
 
       {/* One-Main-Skill-at-a-Time Control Bar */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
@@ -220,7 +199,9 @@ export const RoadmapView: React.FC<{
         <div className="mt-5 space-y-4">
           {selectedRoadmap.topics.map((topic, index) => {
             const mastery = masteryRecords[topic.id];
-            const prereqMet = arePrerequisitesMet(topic, masteryRecords);
+            const prereqMet = topic.prerequisites.every((id) =>
+              completedTopicIds.has(id) || masteryRecords[id]?.status === 'MASTERED',
+            );
             const status = mastery?.status || 'NOT_STARTED';
             const understanding = mastery?.understandingLevel ?? 0;
 
@@ -233,14 +214,14 @@ export const RoadmapView: React.FC<{
                   <div>
                     <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                       <span className="font-mono font-semibold text-slate-700 dark:text-slate-300">
-                        0{index + 1}. {topic.stageTitle}
+                        {String(index + 1).padStart(2, '0')}. {topic.stageTitle}
                       </span>
                       <span aria-hidden="true">·</span>
                       <span>
                         {topic.sourceType === 'OFFICIAL_SYLLABUS'
                           ? 'Official Syllabus Requirement'
                           : topic.sourceType === 'CURATED_ROADMAP'
-                          ? 'Curated Industry Benchmark'
+                          ? 'Curated study module'
                           : 'AI Continuous Specialization'}
                       </span>
                       <span aria-hidden="true">·</span>
@@ -267,7 +248,7 @@ export const RoadmapView: React.FC<{
                             : 'text-slate-500'
                         }`}
                       >
-                        {status.replace(/_/g, ' ')} ({understanding}% Verified)
+                        {completedTopicIds.has(topic.id) && status !== 'MASTERED' ? 'Study completed' : `${status.replace(/_/g, ' ')} (${understanding}% assessed)`}
                       </p>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">
                         {mastery?.nextReviewDate ? `Next SM-2 Review: ${mastery.nextReviewDate}` : 'Not yet assessed'}
@@ -280,14 +261,14 @@ export const RoadmapView: React.FC<{
                       className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors whitespace-nowrap"
                     >
                       <Play className="w-3.5 h-3.5" />
-                      {status === 'MASTERED' ? 'Review in AI Tutor' : 'Study in AI Tutor'}
+                      {topic.studyTask ? 'View practice task' : status === 'MASTERED' ? 'Review lesson' : 'Open lesson'}
                     </button>
                   </div>
                 </div>
 
                 <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
                   <span>
-                    <strong>Mastery Criteria:</strong> {topic.masteryCriteria}
+                    <strong>{topic.studyTask ? 'Completion criteria' : 'Mastery criteria'}</strong> · {topic.masteryCriteria}
                   </span>
                   <span>
                     {prereqMet ? (
@@ -296,7 +277,7 @@ export const RoadmapView: React.FC<{
                       </span>
                     ) : (
                       <span className="text-amber-600 dark:text-amber-400 font-medium">
-                        Requires Prerequisite: {topic.prerequisites.join(', ')}
+                        Prerequisite pending
                       </span>
                     )}
                   </span>
@@ -389,7 +370,7 @@ export const RoadmapView: React.FC<{
 // ==========================================
 // 5. TODAY'S LEARNING & 10-STEP STRUCTURED AI TUTOR WORKSPACE
 // ==========================================
-export const StructuredTutorWorkspaceView: React.FC<{
+type TutorWorkspaceProps = {
   selectedDate: string;
   dailySessions: ScheduledLearningRecommendation[];
   roadmaps: LearningRoadmap[];
@@ -406,45 +387,65 @@ export const StructuredTutorWorkspaceView: React.FC<{
     reflectionNote: string
   ) => void;
   onMarkSessionMissed: (session: ScheduledLearningRecommendation) => void;
-}> = ({
+};
+
+export function StructuredTutorWorkspaceView(props: TutorWorkspaceProps) {
+  const topics = props.roadmaps.flatMap((roadmap) => roadmap.topics);
+  const topic = topics.find((item) => item.id === props.activeTopicId) ?? topics[0];
+  const roadmap = props.roadmaps.find((item) => item.goalId === topic?.goalId);
+  if (!topic) return <p>Add a roadmap to start learning.</p>;
+  if (topic.studyTask) {
+    return (
+      <section className="study-card study-settings space-y-3">
+        <h1 className="text-2xl font-bold">{topic.title}</h1>
+        <label className="study-field max-w-md">Choose a topic
+          <select value={topic.id} onChange={(event) => props.onSelectTopicId(event.target.value)}>
+            {topics.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
+          </select>
+        </label>
+        <p>{topic.subtopics.join(' · ')}</p>
+        <h2>Practice task</h2>
+        <p>{topic.studyTask}</p>
+        {roadmap && <a className="overview-link" href={roadmap.authorityUrl} target="_blank" rel="noreferrer">Open curriculum reference</a>}
+      </section>
+    );
+  }
+
+  return <TutorLesson key={JSON.stringify([props.selectedDate, topic.id])} {...props} currentTopic={topic} allTopics={topics} />;
+}
+
+const TutorLesson: React.FC<TutorWorkspaceProps & { currentTopic: RoadmapTopic; allTopics: RoadmapTopic[] }> = ({
   selectedDate,
   dailySessions,
-  roadmaps,
+  currentTopic,
+  allTopics,
   masteryRecords,
-  activeTopicId,
   onSelectTopicId,
   onSubmitAssessmentResult,
   onMarkSessionMissed,
 }) => {
-  const allTopics: RoadmapTopic[] = roadmaps.flatMap((r) => r.topics);
-  const currentTopic = allTopics.find((t) => t.id === activeTopicId) || allTopics[0];
   const currentMastery = masteryRecords[currentTopic.id];
 
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, number>>({});
   const [practicalChecked, setPracticalChecked] = useState<boolean>(
     currentMastery?.practicalCompleted ?? false
   );
-  const [independentDraft, setIndependentDraft] = useState(
-    'Verified complexity bounds and edge cases on sample input.'
-  );
+  const [independentDraft, setIndependentDraft] = useState('');
   const [sessionNote, setSessionNote] = useState('');
+  const [isPractice, setIsPractice] = useState(false);
   const [quizSubmittedResult, setQuizSubmittedResult] = useState<{
     correct: number;
     total: number;
     mistakes: string[];
-    newStatus: string;
   } | null>(null);
 
-  const handleTopicChange = (newTopicId: string) => {
-    onSelectTopicId(newTopicId);
-    setSelectedAnswers({});
-    setQuizSubmittedResult(null);
-    const m = masteryRecords[newTopicId];
-    setPracticalChecked(m?.practicalCompleted ?? false);
-  };
+  const mentorPlan = getMentorPlan(currentTopic, currentMastery, selectedDate);
+  const questions = currentTopic.lesson.quizQuestions;
+  const canSubmit = !quizSubmittedResult && questions.length > 0 &&
+    questions.every((question) => selectedAnswers[question.id] !== undefined);
 
   const handleGradeQuizAndUpdateMastery = () => {
-    const questions = currentTopic.lesson.quizQuestions;
+    if (!canSubmit) return;
     let correct = 0;
     const mistakes: string[] = [];
 
@@ -458,23 +459,28 @@ export const StructuredTutorWorkspaceView: React.FC<{
     }
 
     const scorePercent = questions.length > 0 ? Math.round((correct / questions.length) * 100) : 0;
-    const willBeMastered = scorePercent >= 80 && practicalChecked;
+    const practicalCompleted = currentMastery?.practicalCompleted ||
+      (practicalChecked && Boolean(independentDraft.trim()));
 
-    onSubmitAssessmentResult(
-      currentTopic.id,
-      currentTopic.goalId,
-      correct,
-      questions.length,
-      mistakes,
-      practicalChecked,
-      sessionNote || `Completed ${currentTopic.title} assessment (${scorePercent}%).`
-    );
+    if (!isPractice) {
+      onSelectTopicId(currentTopic.id);
+      onSubmitAssessmentResult(
+        currentTopic.id,
+        currentTopic.goalId,
+        correct,
+        questions.length,
+        mistakes,
+        practicalCompleted,
+        [sessionNote.trim() || `Completed ${currentTopic.title} assessment (${scorePercent}%).`,
+          practicalChecked && independentDraft.trim() ? `Practical self-review — ${independentDraft.trim()}` : '']
+          .filter(Boolean).join('\n')
+      );
+    }
 
     setQuizSubmittedResult({
       correct,
       total: questions.length,
       mistakes,
-      newStatus: willBeMastered ? 'MASTERED' : scorePercent < 65 ? 'NEEDS_REVISION' : 'IN_PROGRESS',
     });
   };
 
@@ -485,10 +491,10 @@ export const StructuredTutorWorkspaceView: React.FC<{
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-              Today&apos;s Learning &amp; 10-Step Structured AI Tutor
+              Personal Learning Mentor
             </h1>
             <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-              Autonomous Topic Sequencer for {selectedDate} · Mastery requires Quiz Score &ge; 80% + Completed Practical Exercise.
+              Learning plan for {selectedDate}. Guided lessons use your saved assessment history.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -498,7 +504,7 @@ export const StructuredTutorWorkspaceView: React.FC<{
             <select
               id="tutor-topic-select"
               value={currentTopic.id}
-              onChange={(e) => handleTopicChange(e.target.value)}
+              onChange={(e) => onSelectTopicId(e.target.value)}
               className="px-3 py-2 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
             >
               {allTopics.map((t) => (
@@ -509,6 +515,20 @@ export const StructuredTutorWorkspaceView: React.FC<{
             </select>
           </div>
         </div>
+
+        <section className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/40">
+          <h2 className="text-sm font-semibold">{mentorPlan.title}</h2>
+          <p className="mt-1 text-sm">{mentorPlan.instruction}</p>
+          {mentorPlan.mistakes?.map((question) => (
+            <details key={question.id} className="mt-2 text-sm">
+              <summary className="cursor-pointer">{question.question}</summary>
+              <p className="mt-1">{question.explanation}</p>
+            </details>
+          ))}
+          {currentMastery?.assessmentAttempts ? (
+            <p className="mt-2 text-xs">Next review {currentMastery.nextReviewDate}</p>
+          ) : null}
+        </section>
 
         {/* Today's Autonomous Learning Sessions Bar */}
         <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -538,7 +558,7 @@ export const StructuredTutorWorkspaceView: React.FC<{
               <div className="mt-2.5 flex items-center justify-between gap-2">
                 <button
                   type="button"
-                  onClick={() => handleTopicChange(sess.topicId)}
+                  onClick={() => onSelectTopicId(sess.topicId)}
                   className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
                 >
                   Load Lesson
@@ -716,9 +736,10 @@ export const StructuredTutorWorkspaceView: React.FC<{
                 <li key={idx}>Step {idx + 1}: {s}</li>
               ))}
             </ul>
-            <p className="mt-2 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-              Verified Solution: {currentTopic.lesson.guidedExercise.expectedAnswer}
-            </p>
+            <details className="mt-2 text-xs text-emerald-700 dark:text-emerald-400">
+              <summary className="cursor-pointer font-semibold">Show solution</summary>
+              <p className="mt-1">{currentTopic.lesson.guidedExercise.expectedAnswer}</p>
+            </details>
           </div>
 
           <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800">
@@ -728,9 +749,15 @@ export const StructuredTutorWorkspaceView: React.FC<{
             <p className="mt-1 text-xs text-slate-700 dark:text-slate-300">
               {currentTopic.lesson.independentExercise.prompt}
             </p>
+            <ul className="mt-2 list-disc space-y-1 pl-4 text-xs">
+              {currentTopic.lesson.independentExercise.evaluationRubric.map((criterion) => (
+                <li key={criterion}>{criterion}</li>
+              ))}
+            </ul>
             <textarea
               aria-label="Independent exercise solution"
-              rows={2}
+              rows={3}
+              placeholder="Write your solution and how you checked it"
               value={independentDraft}
               onChange={(e) => setIndependentDraft(e.target.value)}
               className="mt-2 w-full p-2.5 text-xs font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
@@ -739,10 +766,11 @@ export const StructuredTutorWorkspaceView: React.FC<{
               <input
                 type="checkbox"
                 checked={practicalChecked}
+                disabled={!independentDraft.trim() && !practicalChecked}
                 onChange={(e) => setPracticalChecked(e.target.checked)}
                 className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
               />
-              <span>I have completed and verified the independent practical exercise</span>
+              <span>I checked my work against the exercise checklist</span>
             </label>
           </div>
         </div>
@@ -769,6 +797,7 @@ export const StructuredTutorWorkspaceView: React.FC<{
                         type="radio"
                         name={`quiz-${q.id}`}
                         checked={selectedAnswers[q.id] === optIdx}
+                        disabled={Boolean(quizSubmittedResult)}
                         onChange={() =>
                           setSelectedAnswers((prev) => ({
                             ...prev,
@@ -801,9 +830,10 @@ export const StructuredTutorWorkspaceView: React.FC<{
             <button
               type="button"
               onClick={handleGradeQuizAndUpdateMastery}
-              className="px-5 py-2.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors whitespace-nowrap"
+              disabled={!canSubmit}
+              className="px-5 py-2.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors whitespace-nowrap disabled:opacity-50"
             >
-              Submit Assessment &amp; Update Mastery Engine
+              {isPractice ? 'Check practice answers' : 'Submit assessment'}
             </button>
           </div>
 
@@ -814,20 +844,27 @@ export const StructuredTutorWorkspaceView: React.FC<{
               className="mt-4 p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs space-y-1.5"
             >
               <p className="font-bold text-slate-900 dark:text-slate-100">
-                09. Assessment &amp; Mistake Analysis: Scored {quizSubmittedResult.correct}/{quizSubmittedResult.total} ({Math.round((quizSubmittedResult.correct / quizSubmittedResult.total) * 100)}%) · Status: {quizSubmittedResult.newStatus}
+                09. Assessment &amp; Mistake Analysis: Scored {quizSubmittedResult.correct}/{quizSubmittedResult.total} ({Math.round((quizSubmittedResult.correct / quizSubmittedResult.total) * 100)}%)
               </p>
               {quizSubmittedResult.mistakes.length > 0 ? (
                 <p className="text-orange-700 dark:text-orange-300">
-                  Flagged Mistake Categories: {quizSubmittedResult.mistakes.join(', ')}. Added to weak-area revision queue.
+                  Review these areas before your next assessment: {quizSubmittedResult.mistakes.join(', ')}.
                 </p>
               ) : (
                 <p className="text-emerald-700 dark:text-emerald-300">
-                  Zero conceptual errors detected. Evidence sent to Layer 3 Career Growth &amp; Placement Readiness!
+                  You answered every quiz question correctly.
                 </p>
               )}
               <p className="text-slate-700 dark:text-slate-300">
                 <strong>10. Revision Recommendation:</strong> {currentTopic.lesson.revisionRecommendation}
               </p>
+              <button type="button" className="font-semibold underline" onClick={() => {
+                setIsPractice(true);
+                setSelectedAnswers({});
+                setQuizSubmittedResult(null);
+              }}>
+                Practice again without changing mastery
+              </button>
             </div>
           )}
         </div>

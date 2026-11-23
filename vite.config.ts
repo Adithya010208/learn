@@ -1,6 +1,6 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import path from 'path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
@@ -14,11 +14,11 @@ export default defineConfig(() => {
         includeAssets: ['icon.svg', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png', 'pwa-maskable-512x512.png'],
         manifest: {
           id: '/',
-          name: 'AetherLearn — AI Personal Learning Manager',
+          name: 'AetherLearn — Study Planner',
           short_name: 'AetherLearn',
           description: 'Three-layer autonomous AI personal learning coach, timetable manager, structured tutor, and career-readiness system.',
-          theme_color: '#1d4ed8',
-          background_color: '#f8fafc',
+          theme_color: '#5546af',
+          background_color: '#f6f5f9',
           display: 'standalone',
           start_url: '/',
           scope: '/',
@@ -84,7 +84,7 @@ export default defineConfig(() => {
     ],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': fileURLToPath(new URL('.', import.meta.url)),
       },
     },
     server: {

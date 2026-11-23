@@ -1,9 +1,14 @@
+import { StudyToolsPanel } from './components/StudyToolsPanel.tsx';
+import { studyResource, weekSummary, type StudyToolsState } from './layers/studyTools.ts';
+import { studyCalendar } from './services/studyCalendar.ts';
+import { StudyPlanView } from './components/StudyPlanView.tsx';
+import { buildStudyPlan } from './layers/studyPlan.ts';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   LayoutDashboard,
   Clock,
@@ -20,7 +25,6 @@ import {
   Sun,
   Moon,
   Bell,
-  Play,
   ArrowRight,
   Menu,
   X,
@@ -37,6 +41,7 @@ import {
   ProjectRecommendation,
   ScheduledLearningRecommendation,
   TimetableTemplate,
+  UnavailableTime,
 } from './types/domain.ts';
 import {
   applyConfirmedModeChange,
@@ -53,13 +58,13 @@ import {
   INITIAL_GATE_SUBJECTS,
   INITIAL_LANGUAGE_PROFICIENCY,
   planMissedSessionRecovery,
-  selectAutonomousDailySessions,
   switchActiveMainSkillTrack,
 } from './layers/layer2LearningAndCareerBridge.ts';
 import {
   createInitialWorkspaceState,
   detectSyncConflict,
   loadLocalWorkspaceState,
+  migrateWorkspaceCurriculum,
   mergeWorkspaceStatesNonDestructively,
   PersistedWorkspaceState,
   saveLocalWorkspaceState,
@@ -97,12 +102,12 @@ export type NavTabId =
   | 'settings';
 
 const NAV_ITEMS: { id: NavTabId; label: string; icon: React.ReactNode }[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
-  { id: 'timetable', label: 'My Timetable', icon: <Clock className="w-4 h-4" /> },
-  { id: 'change-mode', label: 'Change Daily Mode', icon: <Sliders className="w-4 h-4" /> },
+  { id: 'dashboard', label: 'Overview', icon: <LayoutDashboard className="w-4 h-4" /> },
+  { id: 'timetable', label: 'Timetable', icon: <Clock className="w-4 h-4" /> },
+  { id: 'change-mode', label: 'Day modes', icon: <Sliders className="w-4 h-4" /> },
   { id: 'calendar', label: 'Calendar', icon: <Calendar className="w-4 h-4" /> },
-  { id: 'roadmap', label: 'Learning Roadmap', icon: <Map className="w-4 h-4" /> },
-  { id: 'today-learning', label: "Today's Learning", icon: <BookOpen className="w-4 h-4" /> },
+  { id: 'roadmap', label: 'Roadmaps', icon: <Map className="w-4 h-4" /> },
+  { id: 'today-learning', label: 'Study plan', icon: <BookOpen className="w-4 h-4" /> },
   { id: 'ai-tutor', label: 'AI Tutor', icon: <GraduationCap className="w-4 h-4" /> },
   { id: 'projects', label: 'Projects', icon: <FolderGit2 className="w-4 h-4" /> },
   { id: 'career', label: 'Career Growth', icon: <TrendingUp className="w-4 h-4" /> },
@@ -111,15 +116,59 @@ const NAV_ITEMS: { id: NavTabId; label: string; icon: React.ReactNode }[] = [
   { id: 'settings', label: 'Settings', icon: <SettingsIcon className="w-4 h-4" /> },
 ];
 
+const NAV_GROUPS: { label: string; tabs: NavTabId[] }[] = [
+  { label: 'Workspace', tabs: ['today-learning', 'dashboard', 'timetable', 'calendar', 'change-mode'] },
+  { label: 'Development', tabs: ['roadmap', 'projects', 'career', 'analytics'] },
+  { label: 'Tools', tabs: ['ai-tutor', 'ai-coach', 'settings'] },
+];
+
+function WorkspaceNavigation({ current, onSelect }: { current: NavTabId; onSelect: (tab: NavTabId) => void }) {
+  return (
+    <nav aria-label="Workspace navigation" className="workspace-nav">
+      {NAV_GROUPS.map((group) => (
+        <div className="workspace-nav-group" key={group.label}>
+          <p>{group.label}</p>
+          {group.tabs.map((id) => {
+            const item = NAV_ITEMS.find((entry) => entry.id === id)!;
+            return (
+              <button type="button" key={id} onClick={() => onSelect(id)} aria-current={current === id ? 'page' : undefined}>
+                {item.icon}
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
+      ))}
+    </nav>
+  );
+}
+
 export default function App() {
   const [workspace, setWorkspace] = useState<PersistedWorkspaceState>(() =>
     createInitialWorkspaceState()
   );
-  const [activeTab, setActiveTab] = useState<NavTabId>('dashboard');
-  const [selectedDate, setSelectedDate] = useState<string>('2026-11-15');
-  const [activeTutorTopicId, setActiveTutorTopicId] = useState<string>('dsa-basics-arrays-complexity');
+  const [activeTab, setActiveTab] = useState<NavTabId>('today-learning');
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toLocaleDateString('sv-SE'));
+  const lastToday = useRef(new Date().toLocaleDateString('sv-SE'));
+  useEffect(() => {
+    const refresh = () => {
+      const current = new Date().toLocaleDateString('sv-SE');
+      if (current === lastToday.current) return;
+      const previous = lastToday.current;
+      lastToday.current = current;
+      setSelectedDate((selected) => selected === previous ? current : selected);
+    };
+    const timer = window.setInterval(refresh, 15000);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, []);
+  const [activeTutorTopicId, setActiveTutorTopicId] = useState<string>('');
   const [recoveryHistory, setRecoveryHistory] = useState<MissedSessionRecoveryDecision[]>([]);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [planChangeMessage, setPlanChangeMessage] = useState('');
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
 
   // Firebase Auth & Cloud SQL Sync State
@@ -173,7 +222,8 @@ export default function App() {
         workspace.layer1Schedule.dateAssignments,
         workspace.layer1Schedule.templates,
         workspace.layer1Schedule.exams,
-        workspace.layer1Schedule.defaultMode
+        workspace.layer1Schedule.defaultMode,
+        workspace.layer1Schedule.unavailableByDate?.[selectedDate],
       ),
     [selectedDate, workspace.layer1Schedule]
   );
@@ -214,19 +264,112 @@ export default function App() {
     [workspace.layer2Learning, workspace.layer3Career]
   );
 
-  const dailySessions = useMemo(() => {
-    const computed = selectAutonomousDailySessions(
+  const completedStudyTopicIds = useMemo(() => new Set(
+    Object.values(workspace.layer2Learning.sessionHistory).flat()
+      .filter((session) => session.status === 'COMPLETED')
+      .map((session) => session.topicId),
+  ), [workspace.layer2Learning.sessionHistory]);
+
+  const dailySessions = useMemo(
+    () => buildStudyPlan(
       layer1Availability,
       workspace.layer2Learning.roadmaps,
+      workspace.layer2Learning.sessionHistory,
       workspace.layer2Learning.masteryRecords,
-      careerSnapshot.skillGapsForLayer2
+      workspace.layer3Career.projects,
+      workspace.settings.studyTools,
+    ),
+    [layer1Availability, workspace.layer2Learning, workspace.layer3Career.projects, workspace.settings.studyTools],
+  );
+
+  const tools = workspace.settings.studyTools ?? {};
+  const updateStudyTools = (update: (previous: StudyToolsState) => StudyToolsState) => persistWorkspace((previous) => ({
+    ...previous,
+    settings: { ...previous.settings, studyTools: update(previous.settings.studyTools ?? {}) },
+  }));
+
+  const planForDate = (
+    date: string,
+    history = workspace.layer2Learning.sessionHistory,
+    blocks = workspace.layer1Schedule.unavailableByDate?.[date],
+  ) => buildStudyPlan(
+    publishDailyAvailability(
+      date, workspace.layer1Schedule.dateAssignments, workspace.layer1Schedule.templates,
+      workspace.layer1Schedule.exams, workspace.layer1Schedule.defaultMode, blocks,
+    ),
+    workspace.layer2Learning.roadmaps, history, workspace.layer2Learning.masteryRecords,
+    workspace.layer3Career.projects, tools,
+  );
+
+  const previewCalendarChange = (blocks: UnavailableTime[]) => {
+    const updated = planForDate(selectedDate, workspace.layer2Learning.sessionHistory, blocks);
+    const before = dailySessions.filter((item) => item.status === 'SCHEDULED');
+    const moved = before.filter((item) => !updated.some((next) => next.topicId === item.topicId));
+    const trimmed = before.filter((item) => updated.some((next) =>
+      next.topicId === item.topicId && next.durationMinutes < item.durationMinutes,
+    ));
+    return { moved, trimmed };
+  };
+
+  const findNextMatchingDay = (
+    session: ScheduledLearningRecommendation,
+    queue: ScheduledLearningRecommendation[] = [session],
+  ) => {
+    const date = new Date(session.date + 'T12:00:00Z');
+    const history = {
+      ...workspace.layer2Learning.sessionHistory,
+      [session.date]: [
+        ...(workspace.layer2Learning.sessionHistory[session.date] ?? []).filter((item) =>
+          !queue.some((entry) => entry.sessionId === item.sessionId)),
+        ...queue.map((item) => ({ ...item, status: 'RESCHEDULED' as const })),
+      ],
+    };
+    for (let day = 0; day < 14; day++) {
+      date.setUTCDate(date.getUTCDate() + 1);
+      const key = date.toISOString().slice(0, 10);
+      const plan = planForDate(key, history);
+      const next = plan.find((item) => item.topicId === session.topicId && item.status === 'SCHEDULED');
+      if (next) return `${key} at ${next.displayTime}`;
+      history[key] = plan.map((item) => item.status === 'SCHEDULED' ? { ...item, status: 'COMPLETED' } : item);
+    }
+    return '';
+  };
+
+  const forecastExam = (deadline: string) => {
+    const date = new Date(`${selectedDate}T12:00:00Z`);
+    const history = { ...workspace.layer2Learning.sessionHistory };
+    const planned = new Set<string>();
+    let minutes = 0;
+    let day = 0;
+    for (; day < 370; day++, date.setUTCDate(date.getUTCDate() + 1)) {
+      const key = date.toISOString().slice(0, 10);
+      if (key >= deadline) break;
+      const sessions = planForDate(key, history);
+      for (const session of sessions) {
+        if (session.goalId !== 'gate_cse' || session.status !== 'SCHEDULED') continue;
+        minutes += session.durationMinutes;
+        if (session.sessionType === 'NEW_CONCEPT') planned.add(session.topicId);
+      }
+      history[key] = sessions.map((session) => session.status === 'SCHEDULED' ? { ...session, status: 'COMPLETED' } : session);
+    }
+    const roadmap = workspace.layer2Learning.roadmaps.find((item) => item.goalId === 'gate_cse');
+    const missing = (roadmap?.topics ?? []).filter((item) =>
+      !completedStudyTopicIds.has(item.id) && workspace.layer2Learning.masteryRecords[item.id]?.status !== 'MASTERED' &&
+      !planned.has(item.id),
     );
-    const savedForDate = workspace.layer2Learning.sessionHistory[selectedDate] || [];
-    return computed.map((item) => {
-      const override = savedForDate.find((s) => s.slotId === item.slotId);
-      return override ? { ...item, status: override.status, recoveryPlan: override.recoveryPlan } : item;
-    });
-  }, [layer1Availability, workspace.layer2Learning, careerSnapshot.skillGapsForLayer2, selectedDate]);
+    const risk = missing.slice(0, 3).map((item) => item.title).join(', ');
+    return `Projected ${minutes} GATE study minutes and ${planned.size} new modules before the deadline. ${missing.length} modules remain outside the estimate${risk ? `, including ${risk}` : ''}. Assumes each planned session is completed${day === 370 ? ' and covers at most 370 days' : ''}.`;
+  };
+
+  const exportReminders = () => {
+    const calendar = studyCalendar(layer1Availability, dailySessions, workspace.settings.notificationPrefs.reminderLeadMinutes);
+    const url = URL.createObjectURL(new Blob([calendar], { type: 'text/calendar;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `aetherlearn-${selectedDate}.ics`;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
 
   // ==========================================
   // ACTION HANDLERS ACROSS THE 3 LAYERS
@@ -453,24 +596,56 @@ export default function App() {
     );
     setRecoveryHistory((prev) => [decision, ...prev]);
 
-    persistWorkspace((prev) => {
-      const existingForDate = prev.layer2Learning.sessionHistory[selectedDate] || dailySessions;
-      const updatedSessions = existingForDate.map((s) =>
-        s.slotId === session.slotId
-          ? { ...s, status: 'MISSED' as const, recoveryPlan: decision }
-          : s
-      );
-      return {
-        ...prev,
-        layer2Learning: {
-          ...prev.layer2Learning,
-          sessionHistory: {
-            ...prev.layer2Learning.sessionHistory,
-            [selectedDate]: updatedSessions,
-          },
+    recordStudyOutcome(session, 'MISSED');
+  };
+
+  const recordStudyOutcome = (
+    session: ScheduledLearningRecommendation,
+    status: 'COMPLETED' | 'PARTIAL' | 'MISSED',
+  ) => {
+    const [projectId, milestone] = session.topicId.split(':');
+    persistWorkspace((prev) => ({
+      ...prev,
+      layer2Learning: {
+        ...prev.layer2Learning,
+        sessionHistory: {
+          ...prev.layer2Learning.sessionHistory,
+          [session.date]: [
+            ...(prev.layer2Learning.sessionHistory[session.date] ?? []).filter((entry) =>
+              entry.sessionId !== session.sessionId),
+            { ...session, status },
+          ],
         },
-      };
-    });
+      },
+      settings: session.sessionType === 'REVISION_SPACED' && status === 'COMPLETED' && prev.settings.studyTools?.practice
+        ? {
+            ...prev.settings,
+            studyTools: {
+              ...prev.settings.studyTools,
+              practice: Object.fromEntries(Object.entries(prev.settings.studyTools.practice).filter(([id]) => id !== session.topicId)),
+            },
+          }
+        : prev.settings,
+      layer3Career: session.sessionType !== 'PRACTICAL_PROJECT' || milestone === undefined ? prev.layer3Career : {
+        ...prev.layer3Career,
+        projects: prev.layer3Career.projects.map((project) => project.id === projectId ? {
+          ...project,
+          developmentStages: project.developmentStages.map((stage, index) =>
+            index === Number(milestone) ? { ...stage, completed: status === 'COMPLETED' } : stage),
+        } : project),
+      },
+    }));
+  };
+
+  const saveProjectRepository = (projectId: string, repositoryUrl: string) => {
+    persistWorkspace((previous) => ({
+      ...previous,
+      layer3Career: {
+        ...previous.layer3Career,
+        projects: previous.layer3Career.projects.map((project) =>
+          project.id === projectId ? { ...project, repositoryUrl } : project),
+      },
+    }));
   };
 
   const handleUpdateProjectStatus = (
@@ -581,8 +756,9 @@ export default function App() {
       });
       const data = await response.json();
       if (data.snapshot) {
-        setWorkspace(data.snapshot);
-        saveLocalWorkspaceState(data.snapshot);
+        const migrated = migrateWorkspaceCurriculum(data.snapshot);
+        setWorkspace(migrated);
+        saveLocalWorkspaceState(migrated);
         setConflict(null);
         setSyncStatus(`Loaded Cloud SQL snapshot v${data.snapshot.version}`);
       } else {
@@ -595,10 +771,10 @@ export default function App() {
 
   const handleResolveConflictMerge = () => {
     if (!conflict) return;
-    const merged = mergeWorkspaceStatesNonDestructively(
+    const merged = migrateWorkspaceCurriculum(mergeWorkspaceStatesNonDestructively(
       conflict.localState,
-      conflict.remoteState
-    );
+      conflict.remoteState,
+    ));
     setWorkspace(merged);
     saveLocalWorkspaceState(merged);
     setConflict(null);
@@ -611,7 +787,7 @@ export default function App() {
     workspace.layer1Schedule.defaultMode
   );
   const todayTemplate = workspace.layer1Schedule.templates[todayResolved.mode];
-  const nextSession = dailySessions[0];
+  const nextSession = dailySessions.find((session) => session.status === 'SCHEDULED');
   const weakTopicTitles = Object.values(workspace.layer2Learning.masteryRecords)
     .filter((m) => m.status === 'NEEDS_REVISION' || (m.status !== 'NOT_STARTED' && m.understandingLevel < 70))
     .map((m) => {
@@ -622,164 +798,63 @@ export default function App() {
   const unreadNotifCount = workspace.settings.notifications.filter((n) => !n.read).length;
 
   return (
-    <div className="min-h-screen flex bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-      {/* Desktop Sidebar Navigation (12 Required Items) */}
-      <aside
-        aria-label="Primary Sidebar Navigation"
-        className="hidden lg:flex flex-col w-64 shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800"
-      >
-        <div className="px-6 py-5 border-b border-slate-200 dark:border-slate-800">
-          <button
-            type="button"
-            onClick={() => setActiveTab('dashboard')}
-            className="text-xl font-bold tracking-tight text-blue-600 dark:text-blue-400 font-display whitespace-nowrap"
-          >
-            AetherLearn
-          </button>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            AI Personal Learning System
-          </p>
-        </div>
-
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {NAV_ITEMS.map((item) => {
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${
-                  isActive
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'
-                }`}
-              >
-                {item.icon}
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800 space-y-2 text-xs">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-            <span>Active Main Skill:</span>
-            <strong className="text-violet-600 dark:text-violet-400">
-              {workspace.layer2Learning.activeMainSkill.toUpperCase()}
-            </strong>
-          </div>
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-            <span>Placement 2029:</span>
-            <strong className="font-mono text-emerald-600 dark:text-emerald-400 tabular-nums">
-              {careerSnapshot.overallPlacementReadinessPercent}% Ready
-            </strong>
-          </div>
-        </div>
+    <div className="workspace-shell">
+      <aside className="workspace-sidebar">
+        <button type="button" className="workspace-brand" onClick={() => setActiveTab('today-learning')}>
+          <span className="workspace-mark"><BookOpen aria-hidden="true" size={19} /></span>
+          <span>AetherLearn</span>
+        </button>
+        <WorkspaceNavigation current={activeTab} onSelect={setActiveTab} />
+        <button type="button" className="workspace-goal" onClick={() => setActiveTab('career')}>
+          <span><TrendingUp aria-hidden="true" size={17} /></span>
+          <span><strong>Placement 2029</strong><small>Career progress</small></span>
+          <ArrowRight size={14} aria-hidden="true" />
+        </button>
       </aside>
 
-      {/* Mobile Navigation Drawer */}
       {mobileNavOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden flex">
-          <div
-            className="fixed inset-0 bg-slate-900/50"
-            onClick={() => setMobileNavOpen(false)}
-          />
-          <aside className="relative w-72 max-w-full bg-white dark:bg-slate-900 h-full flex flex-col z-10 border-r border-slate-200 dark:border-slate-800">
-            <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-              <span className="text-lg font-bold text-blue-600 dark:text-blue-400 font-display">
-                AetherLearn
-              </span>
-              <button
-                type="button"
-                aria-label="Close Navigation Menu"
-                onClick={() => setMobileNavOpen(false)}
-                className="p-1.5 text-slate-500"
-              >
-                <X className="w-5 h-5" />
+        <div className="workspace-drawer">
+          <button type="button" className="workspace-scrim" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} />
+          <aside className="workspace-drawer-panel" onKeyDown={(event) => {
+            if (event.key === 'Escape') setMobileNavOpen(false);
+          }}>
+            <div className="workspace-drawer-header">
+              <strong>AetherLearn</strong>
+              <button type="button" autoFocus className="workspace-icon-button" aria-label="Close Navigation Menu" onClick={() => setMobileNavOpen(false)}>
+                <X size={20} />
               </button>
             </div>
-            <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-              {NAV_ITEMS.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => {
-                    setActiveTab(item.id);
-                    setMobileNavOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-lg ${
-                    activeTab === item.id
-                      ? 'bg-blue-600 text-white'
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  {item.icon}
-                  <span>{item.label}</span>
-                </button>
-              ))}
-            </nav>
+            <WorkspaceNavigation current={activeTab} onSelect={(tab) => {
+              setActiveTab(tab);
+              setMobileNavOpen(false);
+            }} />
           </aside>
         </div>
       )}
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Top Bar Contract: Zone 1 Breadcrumb/Brand, Zone 2 Quick Links, Zone 3 Primary Action */}
-        <header className="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xs border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 py-3.5 flex items-center justify-between gap-2 sm:gap-6">
-          <div className="flex items-center gap-2.5 shrink-0 min-w-0">
+      <div className="workspace-main">
+        <header className="workspace-topbar">
+          <div className="workspace-breadcrumb">
             <button
               type="button"
               aria-label="Open Navigation Menu"
+              aria-expanded={mobileNavOpen}
               onClick={() => setMobileNavOpen(true)}
-              className="lg:hidden p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="workspace-icon-button workspace-menu-toggle"
             >
-              <Menu className="w-5 h-5" />
+              <Menu size={20} />
             </button>
-            <span className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
-              AetherLearn · {NAV_ITEMS.find((n) => n.id === activeTab)?.label}
-            </span>
+            <span className="workspace-breadcrumb-root">Workspace</span>
+            <span className="workspace-breadcrumb-root" aria-hidden="true">/</span>
+            <strong>{NAV_ITEMS.find((item) => item.id === activeTab)?.label}</strong>
           </div>
-
-          <nav aria-label="Quick Top Navigation" className="hidden md:flex items-center gap-6 text-xs font-medium text-slate-600 dark:text-slate-400">
-            <button
-              type="button"
-              onClick={() => setActiveTab('dashboard')}
-              className="hover:text-slate-900 dark:hover:text-slate-100 transition-colors whitespace-nowrap shrink-0"
-            >
-              Dashboard
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('change-mode')}
-              className="hover:text-slate-900 dark:hover:text-slate-100 transition-colors whitespace-nowrap shrink-0"
-            >
-              Change Mode
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('today-learning')}
-              className="hover:text-slate-900 dark:hover:text-slate-100 transition-colors whitespace-nowrap shrink-0"
-            >
-              Today&apos;s Learning
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('career')}
-              className="hover:text-slate-900 dark:hover:text-slate-100 transition-colors whitespace-nowrap shrink-0"
-            >
-              Placement 2029
-            </button>
-          </nav>
-
-          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-            <PWAInstallButton />
-
+          <div className="workspace-topbar-actions">
+            <div className="workspace-install"><PWAInstallButton /></div>
             <button
               type="button"
               aria-label="Toggle Light or Dark Theme"
               onClick={handleToggleTheme}
-              className="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="workspace-icon-button"
             >
               {workspace.settings.theme === 'dark' ? (
                 <Sun className="w-4 h-4" />
@@ -793,15 +868,15 @@ export default function App() {
                 type="button"
                 aria-label={`Notifications (${unreadNotifCount} unread)`}
                 onClick={() => setShowNotifDropdown((v) => !v)}
-                className="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="workspace-icon-button"
               >
                 <Bell className="w-4 h-4" />
               </button>
 
               {showNotifDropdown && (
-                <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl p-4 z-50 space-y-2.5">
+                <div className="absolute right-0 mt-2 w-[min(20rem,calc(100vw-2rem))] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl p-4 z-50 space-y-2.5">
                   <div className="flex items-center justify-between text-xs font-bold text-slate-900 dark:text-slate-100">
-                    <span>Intelligent Reminders ({unreadNotifCount})</span>
+                    <span>Notifications ({unreadNotifCount})</span>
                     <button
                       type="button"
                       onClick={() => setShowNotifDropdown(false)}
@@ -828,285 +903,49 @@ export default function App() {
               )}
             </div>
 
-            <button
-              type="button"
-              onClick={() => setActiveTab('change-mode')}
-              className="hidden sm:inline-flex px-3.5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors whitespace-nowrap shrink-0"
-            >
-              Change Daily Mode
-            </button>
+            <button type="button" className="workspace-avatar" aria-label="Open Settings" onClick={() => setActiveTab('settings')}>A</button>
           </div>
         </header>
 
         {/* Main Viewport Content */}
-        <main className="flex-1 p-4 sm:p-6 max-w-7xl w-full mx-auto">
+        <main className="workspace-content">
           {activeTab === 'dashboard' && (
-            <div className="space-y-6">
-              {/* Top Greeting & Current Date / Mode Section */}
-              <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div>
-                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400 tabular-nums">
-                    Current Date: {selectedDate} · Assigned Daily Mode:{' '}
-                    <strong className="text-blue-600 dark:text-blue-400">
-                      {getModeLabel(todayResolved.mode)}
-                    </strong>{' '}
-                    ({todayResolved.isExplicit ? 'Explicitly Assigned' : 'Default Mode — Working Day'})
-                  </p>
-                  <h1 className="mt-1 text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100 text-balance">
-                    Good morning, ADHI — Here is your autonomous learning plan for today.
-                  </h1>
-                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                    Primary Goal: <strong>Product-Company Placement (2029)</strong> · Backup Goal: <strong>GATE CSE</strong> · Active Main Technical Track: <strong className="text-violet-600 dark:text-violet-400">{workspace.layer2Learning.activeMainSkill.toUpperCase()}</strong>
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (nextSession) setActiveTutorTopicId(nextSession.topicId);
-                      setActiveTab('ai-tutor');
-                    }}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs transition-colors whitespace-nowrap"
-                  >
-                    <Play className="w-4 h-4" />
-                    Start Next Learning Session
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('change-mode')}
-                    className="px-4 py-2.5 text-xs font-semibold text-slate-800 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors whitespace-nowrap"
-                  >
-                    CHANGE DAILY MODE
-                  </button>
-                </div>
-              </section>
-
-              {/* Main Focus Section: Today's Priority, Next Session, Active Skill, Readiness */}
-              <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 flex flex-col justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                      Next Autonomous Learning Session
-                    </p>
-                    <h2 className="mt-1 text-base font-bold text-slate-900 dark:text-slate-100">
-                      {nextSession?.topicTitle || 'Variable-Size Sliding Window & Monotonic Deque'}
-                    </h2>
-                    <p className="mt-1 font-mono text-xs text-blue-600 dark:text-blue-400 tabular-nums">
-                      {nextSession?.displayTime || '5:30–6:15 PM'} ({nextSession?.durationMinutes || 45}m)
-                    </p>
-                  </div>
-                  <p className="mt-3 text-xs text-slate-500 dark:text-slate-400 line-clamp-2">
-                    {nextSession?.autonomousReason}
-                  </p>
-                </div>
-
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 flex flex-col justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                      Active Main Technical Skill Track
-                    </p>
-                    <h2 className="mt-1 text-base font-bold text-violet-600 dark:text-violet-400">
-                      {workspace.layer2Learning.activeMainSkill === 'fullstack'
-                        ? 'Full-Stack Software Engineering'
-                        : workspace.layer2Learning.activeMainSkill === 'cybersecurity'
-                        ? 'Cybersecurity & Ethical Hacking'
-                        : 'AI & Machine Learning'}
-                    </h2>
-                    <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                      One-Main-Skill-at-a-Time Rule enforced
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('roadmap')}
-                    className="mt-3 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline text-left"
-                  >
-                    Inspect 8 Goal Roadmaps →
-                  </button>
-                </div>
-
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 flex flex-col justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                      Verified Placement 2029 Readiness
-                    </p>
-                    <p className="mt-1 text-2xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                      {careerSnapshot.overallPlacementReadinessPercent}%
-                    </p>
-                    <p className="mt-1 text-xs text-slate-600 dark:text-slate-400 tabular-nums">
-                      GATE CSE Backup Readiness: {careerSnapshot.gateOverallReadinessPercent}%
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('career')}
-                    className="mt-3 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline text-left"
-                  >
-                    View Verified Career Evidence →
-                  </button>
-                </div>
-
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 flex flex-col justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                      {weakTopicTitles.length > 0 ? 'Topics Flagged for Revision Today' : 'Learning Level & Starting Mode'}
-                    </p>
-                    <p className="mt-1 text-base font-bold text-orange-600 dark:text-orange-400">
-                      {weakTopicTitles.length > 0
-                        ? `${weakTopicTitles.length} Weak / Due Topic(s)`
-                        : 'Complete Beginner (From Scratch)'}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-600 dark:text-slate-400 truncate">
-                      {weakTopicTitles.join(' · ') || 'All 8 roadmaps unlocked at Stage 1 Foundations (0% baseline)'}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveTutorTopicId(
-                        weakTopicTitles.length > 0 ? 'pl-os-virtual-memory' : 'dsa-basics-arrays-complexity'
-                      );
-                      setActiveTab('ai-tutor');
-                    }}
-                    className="mt-3 text-xs font-semibold text-orange-600 dark:text-orange-400 hover:underline text-left"
-                  >
-                    {weakTopicTitles.length > 0 ? 'Start Weak-Topic Revision →' : 'Start Stage 1 Foundation Lesson →'}
-                  </button>
-                </div>
-              </section>
-
-              {/* Schedule Section & Autonomous Learning Queue */}
-              <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Today's Timetable Preview */}
-                <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
-                  <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
-                    <div>
-                      <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                        Today&apos;s {todayTemplate.name} Timetable ({todayTemplate.wakeTime} – {todayTemplate.sleepTime})
-                      </h2>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 tabular-nums">
-                        Protected Sleep: {Math.round(todayTemplate.minSleepMinutes / 60)}h · Learning Allocation: {todayTemplate.totalLearningMinutes}m · Academic Limit: {todayTemplate.maxAcademicMinutes}m
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab('timetable')}
-                      className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline whitespace-nowrap"
-                    >
-                      Full Timetable ({todayTemplate.activities.length} slots) →
-                    </button>
-                  </div>
-
-                  <div className="mt-3 divide-y divide-slate-100 dark:divide-slate-800 max-h-96 overflow-y-auto pr-1">
-                    {todayTemplate.activities.map((act) => (
-                      <div
-                        key={act.id}
-                        className="py-2.5 flex items-center justify-between gap-3 text-xs"
-                      >
-                        <span className="font-mono text-slate-600 dark:text-slate-400 tabular-nums w-36 shrink-0">
-                          {act.displayTime}
-                        </span>
-                        <span className="font-medium text-slate-900 dark:text-slate-100 flex-1 truncate">
-                          {act.title}
-                        </span>
-                        <span className={`font-medium shrink-0 ${getCategoryColorText(act.category)}`}>
-                          {act.durationMinutes}m
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Autonomous Learning Sessions & Coach Insights */}
-                <div className="space-y-5">
-                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
-                    <div className="flex items-center justify-between">
-                      <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                        AI Selected Sessions Today
-                      </h2>
-                      <span className="text-xs text-slate-500 font-mono tabular-nums">
-                        {dailySessions.length} slots
-                      </span>
-                    </div>
-                    <div className="mt-3 space-y-2.5">
-                      {dailySessions.map((sess) => (
-                        <div
-                          key={sess.sessionId}
-                          className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 text-xs"
-                        >
-                          <div className="flex items-center justify-between font-mono text-[11px] text-blue-600 dark:text-blue-400 tabular-nums">
-                            <span>{sess.displayTime}</span>
-                            <span>{sess.goalId.toUpperCase()}</span>
-                          </div>
-                          <p className="mt-1 font-bold text-slate-900 dark:text-slate-100">
-                            {sess.topicTitle}
-                          </p>
-                          <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2">
-                            {sess.autonomousReason}
-                          </p>
-                          <div className="mt-2 flex items-center justify-between">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setActiveTutorTopicId(sess.topicId);
-                                setActiveTab('ai-tutor');
-                              }}
-                              className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
-                            >
-                              Open in AI Tutor →
-                            </button>
-                            {sess.status === 'SCHEDULED' ? (
-                              <button
-                                type="button"
-                                onClick={() => handleMarkSessionMissed(sess)}
-                                className="text-[11px] text-orange-600 dark:text-orange-400 hover:underline"
-                              >
-                                Missed?
-                              </button>
-                            ) : (
-                              <span className="text-[11px] font-semibold text-orange-600">
-                                {sess.status}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Upcoming Exams & Active Project Card */}
-                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 text-xs space-y-3">
-                    <div>
-                      <p className="font-bold text-orange-600 dark:text-orange-400">
-                        Upcoming Examination Window (25 Days)
-                      </p>
-                      <p className="mt-0.5 font-semibold text-slate-900 dark:text-slate-100">
-                        Semester V University Core CS Exams (Dec 10 – Dec 18, 2026)
-                      </p>
-                      <p className="text-slate-500 dark:text-slate-400 mt-0.5">
-                        Subjects: DBMS (CS3501) &amp; Operating Systems (CS3502)
-                      </p>
-                    </div>
-                    <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
-                      <p className="font-bold text-violet-600 dark:text-violet-400">
-                        Recommended Starter Portfolio Project (From Scratch)
-                      </p>
-                      <p className="mt-0.5 font-semibold text-slate-900 dark:text-slate-100">
-                        {workspace.layer3Career.projects[0]?.title ||
-                          'Responsive Personal Learning Portfolio & Interactive Task Tracker (From Scratch)'}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab('projects')}
-                        className="mt-1 font-semibold text-blue-600 dark:text-blue-400 hover:underline"
-                      >
-                        Start Stage 1 Foundation Project →
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </section>
+            <div className="study-page">
+              <header className="study-heading">
+                <div><h1>Overview</h1><p>Placement preparation and study activity</p></div>
+                <button type="button" className="study-button study-button-primary" onClick={() => setActiveTab('today-learning')}>Open study plan <ArrowRight size={16} /></button>
+              </header>
+              <div className="overview-metrics">
+                <section className="study-card study-progress">
+                  <header><TrendingUp size={18} /><h2>Placement readiness</h2></header>
+                  <p className="study-progress-count"><strong>{careerSnapshot.overallPlacementReadinessPercent}%</strong></p>
+                  <button type="button" className="overview-link" onClick={() => setActiveTab('career')}>Career progress <ArrowRight size={14} /></button>
+                </section>
+                <section className="study-card study-progress">
+                  <header><Map size={18} /><h2>GATE CSE readiness</h2></header>
+                  <p className="study-progress-count"><strong>{careerSnapshot.gateOverallReadinessPercent}%</strong></p>
+                  <button type="button" className="overview-link" onClick={() => setActiveTab('roadmap')}>View roadmaps <ArrowRight size={14} /></button>
+                </section>
+                <section className="study-card study-progress">
+                  <header><FolderGit2 size={18} /><h2>Portfolio projects</h2></header>
+                  <p className="study-progress-count"><strong>{careerSnapshot.portfolioReadyProjectsCount}</strong></p>
+                  <button type="button" className="overview-link" onClick={() => setActiveTab('projects')}>View projects <ArrowRight size={14} /></button>
+                </section>
+              </div>
+              <div className="study-layout">
+                <section className="study-card study-settings">
+                  <h2>Next study session</h2>
+                  {nextSession ? <>
+                    <h3 className="mt-3 text-xl font-bold">{nextSession.topicTitle}</h3>
+                    <p>{nextSession.displayTime} · {nextSession.durationMinutes} min</p>
+                  </> : <p>No remaining sessions for the selected date.</p>}
+                </section>
+                <section className="study-card study-settings">
+                  <h2>{todayTemplate.name}</h2>
+                  <p>{todayTemplate.wakeTime}–{todayTemplate.sleepTime} · {todayTemplate.activities.length} timetable blocks</p>
+                  <button type="button" className="overview-link mt-3" onClick={() => setActiveTab('timetable')}>View timetable <ArrowRight size={14} /></button>
+                </section>
+              </div>
             </div>
           )}
 
@@ -1148,11 +987,11 @@ export default function App() {
             <RoadmapView
               roadmaps={workspace.layer2Learning.roadmaps}
               masteryRecords={workspace.layer2Learning.masteryRecords}
+              completedTopicIds={completedStudyTopicIds}
               syllabusUpdates={workspace.layer2Learning.syllabusUpdates}
               activeMainSkill={workspace.layer2Learning.activeMainSkill}
               onSwitchMainSkill={handleSwitchMainSkill}
               onApproveSyllabusUpdate={handleApproveSyllabusUpdate}
-              onRunTrustedSourceCheck={() => {}}
               onOpenTopicInTutor={(topicId) => {
                 setActiveTutorTopicId(topicId);
                 setActiveTab('ai-tutor');
@@ -1160,13 +999,103 @@ export default function App() {
             />
           )}
 
-          {(activeTab === 'today-learning' || activeTab === 'ai-tutor') && (
+          {activeTab === 'today-learning' && (
+            <>
+            {planChangeMessage && <p role="status" className="study-card study-settings mb-3">{planChangeMessage}</p>}
+            <StudyPlanView
+              key={selectedDate}
+              availability={layer1Availability}
+              blocks={workspace.layer1Schedule.unavailableByDate?.[selectedDate] ?? []}
+              sessions={dailySessions}
+              onDate={(date) => { setPlanChangeMessage(''); setSelectedDate(date); }}
+              onMode={(mode) => { setPlanChangeMessage(''); handleApplyModeAssignment([selectedDate], mode); }}
+              previewBlocks={(blocks) => {
+                const { moved, trimmed } = previewCalendarChange(blocks);
+                const changes = moved.map((session) => {
+                  const next = findNextMatchingDay(session, moved);
+                  return next ? `${session.topicTitle}: next matching slot ${next}.` : `${session.topicTitle} will wait for a matching slot.`;
+                });
+                return [...changes, ...trimmed.map((session) => `${session.topicTitle} will have a shorter session.`)].join(' ') ||
+                  'This block leaves your scheduled topics unchanged.';
+              }}
+              onBlocks={(blocks) => {
+                const { moved } = previewCalendarChange(blocks);
+                setPlanChangeMessage('');
+                persistWorkspace((prev) => ({
+                  ...prev,
+                  layer1Schedule: {
+                    ...prev.layer1Schedule,
+                    unavailableByDate: { ...prev.layer1Schedule.unavailableByDate, [selectedDate]: blocks },
+                  },
+                  layer2Learning: {
+                    ...prev.layer2Learning,
+                    sessionHistory: {
+                      ...prev.layer2Learning.sessionHistory,
+                      [selectedDate]: [
+                        ...(prev.layer2Learning.sessionHistory[selectedDate] ?? []).filter((entry) =>
+                          !moved.some((session) => session.sessionId === entry.sessionId)),
+                        ...moved.map((session) => ({ ...session, status: 'RESCHEDULED' as const })),
+                      ],
+                    },
+                  },
+                }));
+              }}
+              onOutcome={(session, status) => {
+                recordStudyOutcome(session, status);
+                const next = status === 'COMPLETED' ? '' : findNextMatchingDay(session);
+                setPlanChangeMessage(status === 'COMPLETED' ? '' : next
+                  ? `${session.topicTitle} can resume on ${next}.`
+                  : `${session.topicTitle} is queued for a matching slot.`);
+              }}
+              toolsPanel={<StudyToolsPanel date={selectedDate} tools={tools} update={updateStudyTools}
+                summary={weekSummary(workspace.layer2Learning.sessionHistory, selectedDate)}
+                forecast={forecastExam} exportCalendar={exportReminders} />}
+              sessionTools={(session) => {
+                const roadmap = workspace.layer2Learning.roadmaps.find((item) => item.goalId === session.goalId);
+                const topic = roadmap?.topics.find((item) => item.id === session.topicId);
+                if (!topic) return null;
+                const resource = studyResource(session.goalId, session.topicId, roadmap?.authorityUrl);
+                return <details className="mt-2 text-sm">
+                  <summary className="cursor-pointer font-semibold text-blue-700 dark:text-blue-300">Resource and practice</summary>
+                  {resource && <a className="overview-link mt-1" href={resource.url} target="_blank" rel="noreferrer">{resource.title}</a>}
+                  <p>{topic.studyTask ?? topic.lesson.independentExercise.prompt}</p>
+                  <button type="button" className="study-button mt-2" onClick={() =>
+                    updateStudyTools((previous) => ({ ...previous, practice: { ...previous.practice, [topic.id]: selectedDate } }))}>
+                    {tools.practice?.[topic.id] ? 'Practice queued' : 'Need more practice'}
+                  </button>
+                  <form className="mt-2 grid gap-2" onSubmit={(event) => {
+                    event.preventDefault();
+                    const form = event.currentTarget;
+                    const note = String(new FormData(form).get('mistake') ?? '').trim().slice(0, 240);
+                    if (!note) return;
+                    updateStudyTools((previous) => ({
+                      ...previous,
+                      mistakes: [{ id: crypto.randomUUID(), topicId: topic.id, title: topic.title, note, date: selectedDate }, ...(previous.mistakes ?? [])],
+                      practice: { ...previous.practice, [topic.id]: selectedDate },
+                    }));
+                    form.reset();
+                  }}>
+                    <label className="study-field">What tripped you up?
+                      <input name="mistake" required maxLength={240} placeholder="One sentence" />
+                    </label>
+                    <button type="submit" className="study-button">Save mistake and queue practice</button>
+                  </form>
+                </details>;
+              }}
+              reminderLeadMinutes={workspace.settings.notificationPrefs.enableSessionReminders
+                ? workspace.settings.notificationPrefs.reminderLeadMinutes
+                : undefined}
+            />
+            </>
+          )}
+
+          {activeTab === 'ai-tutor' && (
             <StructuredTutorWorkspaceView
               selectedDate={selectedDate}
               dailySessions={dailySessions}
               roadmaps={workspace.layer2Learning.roadmaps}
               masteryRecords={workspace.layer2Learning.masteryRecords}
-              activeTopicId={activeTutorTopicId}
+              activeTopicId={activeTutorTopicId || dailySessions.find((session) => session.sessionType !== 'EXAM_UNIT_PREP' && session.sessionType !== 'PRACTICAL_PROJECT')?.topicId || ''}
               onSelectTopicId={setActiveTutorTopicId}
               onSubmitAssessmentResult={handleSubmitAssessmentResult}
               onMarkSessionMissed={handleMarkSessionMissed}
@@ -1179,6 +1108,7 @@ export default function App() {
               masteryRecords={workspace.layer2Learning.masteryRecords}
               onUpdateProjectStatus={handleUpdateProjectStatus}
               onToggleProjectStage={handleToggleProjectStage}
+              onSaveRepository={saveProjectRepository}
               onOpenPrerequisiteTopic={(topicId) => {
                 setActiveTutorTopicId(topicId);
                 setActiveTab('ai-tutor');
@@ -1282,8 +1212,9 @@ export default function App() {
                 }))
               }
               onImportWorkspaceJson={(restored) => {
-                setWorkspace(restored);
-                saveLocalWorkspaceState(restored);
+                const migrated = migrateWorkspaceCurriculum(restored);
+                setWorkspace(migrated);
+                saveLocalWorkspaceState(migrated);
               }}
             />
           )}

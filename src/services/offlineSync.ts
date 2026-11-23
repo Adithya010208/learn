@@ -1,3 +1,4 @@
+import type { StudyToolsState } from '../layers/studyTools.ts';
 import {
   AppNotificationItem,
   DailyMode,
@@ -10,6 +11,7 @@ import {
   SyllabusUpdateRecord,
   TimetableTemplate,
   TopicMasteryRecord,
+  UnavailableTime,
 } from '../types/domain.ts';
 import { createInitialTemplates } from '../layers/layer1Schedule.ts';
 import {
@@ -40,6 +42,7 @@ export interface PersistedWorkspaceState {
     templates: Record<DailyMode, TimetableTemplate>;
     dateAssignments: Record<string, DateModeAssignment>;
     exams: ExamConfiguration[];
+    unavailableByDate?: Record<string, UnavailableTime[]>;
   };
   layer2Learning: {
     activeMainSkill: 'fullstack' | 'cybersecurity' | 'ai_ml';
@@ -56,6 +59,7 @@ export interface PersistedWorkspaceState {
     englishSessionsIncrement: number;
   };
   settings: {
+    studyTools?: StudyToolsState;
     theme: 'light' | 'dark';
     notificationPrefs: NotificationPreferenceConfig;
     notifications: AppNotificationItem[];
@@ -214,15 +218,6 @@ export function createInitialWorkspaceState(): PersistedWorkspaceState {
           actionTab: 'today-learning',
         },
         {
-          id: 'notif-2',
-          category: 'SYLLABUS_UPDATE',
-          title: 'Major Roadmap Addition Pending Approval',
-          message: 'Full-Stack roadmap detected a Stage 4 update from React 19 & OWASP 2026 sources. Review and approve in Learning Roadmap.',
-          timestamp: `${today} 07:05 AM`,
-          read: false,
-          actionTab: 'roadmap',
-        },
-        {
           id: 'notif-3',
           category: 'EXAM',
           title: 'Semester V Exams in 25 Days',
@@ -254,6 +249,31 @@ function openIndexedDB(): Promise<IDBDatabase> {
   });
 }
 
+export function migrateWorkspaceCurriculum(state: PersistedWorkspaceState): PersistedWorkspaceState {
+  const savedRoadmaps = state.layer2Learning.roadmaps;
+  const roadmaps = INITIAL_ROADMAPS.map((canonical) => {
+    const saved = savedRoadmaps.find((roadmap) => roadmap.goalId === canonical.goalId);
+    if (!saved) return structuredClone(canonical);
+    const currentIds = new Set(canonical.topics.map((topic) => topic.id));
+    const extensions = saved.topics.filter((topic) => !currentIds.has(topic.id));
+    return { ...canonical, isActiveMainSkill: saved.isActiveMainSkill, topics: [...canonical.topics, ...extensions] };
+  });
+  return {
+    ...state,
+    settings: {
+      ...state.settings,
+      notifications: state.settings.notifications.filter((notification) => notification.id !== 'notif-2'),
+    },
+    layer2Learning: {
+      ...state.layer2Learning,
+      roadmaps,
+      syllabusUpdates: state.layer2Learning.syllabusUpdates.filter(
+        (update) => update.id !== 'upd-gate-2026-official' && update.id !== 'upd-fs-react19-server-actions',
+      ),
+    },
+  };
+}
+
 export async function loadLocalWorkspaceState(): Promise<PersistedWorkspaceState> {
   try {
     const db = await openIndexedDB();
@@ -265,7 +285,7 @@ export async function loadLocalWorkspaceState(): Promise<PersistedWorkspaceState
       getReq.onerror = () => reject(getReq.error);
     });
     if (record && record.layer1Schedule && record.layer2Learning && record.layer3Career) {
-      return record;
+      return migrateWorkspaceCurriculum(record);
     }
   } catch {
     // Fallback to localStorage
@@ -277,7 +297,7 @@ export async function loadLocalWorkspaceState(): Promise<PersistedWorkspaceState
       if (raw) {
         const parsed = JSON.parse(raw) as PersistedWorkspaceState;
         if (parsed.layer1Schedule && parsed.layer2Learning) {
-          return parsed;
+          return migrateWorkspaceCurriculum(parsed);
         }
       }
     }
@@ -362,6 +382,10 @@ export function mergeWorkspaceStatesNonDestructively(
     hasUnsyncedOfflineChanges: false,
     layer1Schedule: {
       ...local.layer1Schedule,
+      unavailableByDate: {
+        ...remote.layer1Schedule.unavailableByDate,
+        ...local.layer1Schedule.unavailableByDate,
+      },
       dateAssignments: {
         ...remote.layer1Schedule.dateAssignments,
         ...local.layer1Schedule.dateAssignments,

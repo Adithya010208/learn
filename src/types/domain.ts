@@ -125,6 +125,11 @@ export interface ExamConfiguration {
 // ==========================================
 // INTER-LAYER CONTRACT 1 -> 2: PUBLISHED AVAILABILITY
 // ==========================================
+export interface UnavailableTime {
+  startTime: string;
+  endTime: string;
+}
+
 export interface AvailableLearningSlotContract {
   slotId: string;
   date: string;
@@ -223,6 +228,7 @@ export interface RoadmapTopic {
   estimatedDurationMinutes: number;
   objectives: string[];
   masteryCriteria: string;
+  studyTask?: string;
   sourceType: SyllabusSourceType;
   isOfficialGateTopic?: boolean;
   isAdvancedContinuousTopic?: boolean;
@@ -293,7 +299,7 @@ export interface ScheduledLearningRecommendation {
   topicTitle: string;
   sessionType: 'NEW_CONCEPT' | 'REVISION_SPACED' | 'WEAK_AREA_RECOVERY' | 'PRACTICAL_PROJECT' | 'EXAM_UNIT_PREP';
   autonomousReason: string;
-  status: 'SCHEDULED' | 'COMPLETED' | 'MISSED' | 'RESCHEDULED' | 'SHORTENED';
+  status: 'SCHEDULED' | 'COMPLETED' | 'PARTIAL' | 'MISSED' | 'RESCHEDULED' | 'SHORTENED';
   notes?: string;
   assessmentScore?: number;
   recoveryPlan?: MissedSessionRecoveryDecision;

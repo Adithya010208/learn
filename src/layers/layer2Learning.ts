@@ -1,3 +1,4 @@
+import { applyAuditedCurriculum } from './auditedCurriculum.ts';
 import {
   GoalId,
   Layer1PublishedAvailability,
@@ -25,7 +26,7 @@ import {
  * - Intelligent Missed Session Recovery Planner
  */
 
-export const INITIAL_ROADMAPS: LearningRoadmap[] = [
+const LEGACY_ROADMAPS: LearningRoadmap[] = [
   {
     goalId: 'placement',
     title: 'Product-Based Software Placement (2029 Cohort)',
@@ -402,9 +403,9 @@ ORDER BY date DESC;`,
             '4. After the loop finishes, return `maxVal`.',
           ],
           programmingDetails: {
-            codeExample: `export function findMaxElement(nums: number[]): number {
-  let maxVal = nums[0];
-  for (let i = 1; i < nums.length; i++) {
+            codeExample: `static int findMaxElement(int[] nums) {
+  int maxVal = nums[0];
+  for (int i = 1; i < nums.length; i++) {
     if (nums[i] > maxVal) {
       maxVal = nums[i];
     }
@@ -423,19 +424,19 @@ ORDER BY date DESC;`,
               { input: 'nums = [-5, -2, -10]', expectedOutput: '-2', explanation: 'Works accurately on negative numbers because maxVal starts at nums[0], not 0.' },
             ],
             debuggingExercise: {
-              buggyCode: `let maxVal = 0; // Bug when all numbers in nums are negative like [-10, -5, -20]`,
+              buggyCode: `int maxVal = 0; // Bug when all numbers in nums are negative like [-10, -5, -20]`,
               hint: 'Initialize `maxVal` to `nums[0]` instead of `0` so arrays of negative numbers return the true maximum (`-5` instead of `0`).',
-              fixedCode: `let maxVal = nums[0];`,
+              fixedCode: `int maxVal = nums[0];`,
             },
             codingChallenge: {
               prompt: 'What is the Big-O time complexity of a single loop that runs from `i = 0` to `n - 1` doing O(1) work per step?',
-              starterCode: `const timeComplexity = "____";`,
+              starterCode: `String timeComplexity = "____";`,
               solutionKey: 'O(N)',
               complexityAnalysis: 'Time Complexity: O(N) because we visit each of the N elements once. Space Complexity: O(1) extra memory.',
             },
           },
           guidedExercise: {
-            question: 'Why does initializing `let maxVal = 0` fail on the array `[-8, -3, -15]`?',
+            question: 'Why does initializing `int maxVal = 0` fail on the array `[-8, -3, -15]`?',
             steps: [
               'Every element in `[-8, -3, -15]` is less than `0`.',
               'So `nums[i] > maxVal` is never true, and the function wrongly returns `0` (which is not even in the array!).',
@@ -503,21 +504,16 @@ ORDER BY date DESC;`,
             '4. Update `best = Math.max(best, right - left + 1)` when the invariant holds.',
           ],
           programmingDetails: {
-            codeExample: `export function maxSlidingWindow(nums: number[], k: number): number[] {
-  const deque: number[] = []; // stores indices in decreasing order of values
-  const result: number[] = [];
-
-  for (let i = 0; i < nums.length; i++) {
-    if (deque.length > 0 && deque[0] <= i - k) {
-      deque.shift();
-    }
-    while (deque.length > 0 && nums[deque[deque.length - 1]] <= nums[i]) {
-      deque.pop();
-    }
-    deque.push(i);
-    if (i >= k - 1) {
-      result.push(nums[deque[0]]);
-    }
+            codeExample: `// Add import java.util.ArrayDeque; and import java.util.Deque;
+static int[] maxSlidingWindow(int[] nums, int k) {
+  if (k < 1 || k > nums.length) throw new IllegalArgumentException("Invalid window");
+  Deque<Integer> indices = new ArrayDeque<>();
+  int[] result = new int[nums.length - k + 1];
+  for (int i = 0; i < nums.length; i++) {
+    if (!indices.isEmpty() && indices.peekFirst() <= i - k) indices.removeFirst();
+    while (!indices.isEmpty() && nums[indices.peekLast()] <= nums[i]) indices.removeLast();
+    indices.addLast(i);
+    if (i >= k - 1) result[i - k + 1] = nums[indices.peekFirst()];
   }
   return result;
 }`,
@@ -533,9 +529,9 @@ ORDER BY date DESC;`,
               { input: 'nums = [4,2], k = 2', expectedOutput: '[4]', explanation: 'Single window of size 2.' },
             ],
             debuggingExercise: {
-              buggyCode: `while (deque.length > 0 && nums[deque[deque.length - 1]] < nums[i]) {\n  deque.pop();\n}\n// Bug: stores values instead of indices in deque.push(nums[i])`,
-              hint: 'Store indices `i` in the deque so you can accurately check `deque[0] <= i - k` for window expiration.',
-              fixedCode: `deque.push(i);`,
+              buggyCode: `while (!indices.isEmpty() && nums[indices.peekLast()] < nums[i]) {\n  indices.removeLast();\n}\n// Bug: stores values instead of indices in indices.addLast(nums[i])`,
+              hint: 'Store indices `i` in the deque so you can accurately check `indices.peekFirst() <= i - k` for window expiration.',
+              fixedCode: `indices.addLast(i);`,
             },
             codingChallenge: {
               prompt: 'Complete the condition to shrink a variable sliding window when `windowSum > target`.',
@@ -572,7 +568,7 @@ ORDER BY date DESC;`,
               options: [
                 'Adding elements can decrease the sum and removing elements can increase the sum, breaking monotonicity',
                 'Negative numbers cannot be stored in hash maps',
-                'JavaScript arrays do not support negative integers',
+                'Java arrays cannot store negative values',
                 'Window size K must always be prime',
               ],
               correctIndex: 0,
@@ -662,7 +658,7 @@ ORDER BY date DESC;`,
         goalId: 'gate_cse',
         stageId: 'stage-gate-scratch',
         stageTitle: 'Stage 1: GATE CSE Beginner Foundations (From Scratch)',
-        title: 'GATE CSE From Scratch: Propositional Logic, Sets & Introduction to Finite Automata (DFA)',
+        title: 'Finite automata foundations and DFA traces',
         subtopics: ['Truth Tables & Logical Implication (P -> Q)', 'Alphabets, Strings & Languages (Σ*)', 'Designing Your First DFA State Diagram'],
         prerequisites: [],
         estimatedDurationMinutes: 45,
@@ -671,7 +667,7 @@ ORDER BY date DESC;`,
           'Understand alphabets (Σ), strings, and formal languages as sets of strings',
           'Construct a simple 2-state Deterministic Finite Automaton (DFA) from zero prior knowledge',
         ],
-        masteryCriteria: 'Score >= 80% on the beginner Discrete Logic & DFA quiz and complete the even-zeros DFA trace.',
+        masteryCriteria: 'Score >= 80% on the logic review and DFA quiz and complete the even-ones DFA trace.',
         sourceType: 'OFFICIAL_SYLLABUS',
         isOfficialGateTopic: true,
         lesson: {
@@ -727,7 +723,7 @@ ORDER BY date DESC;`,
               mistakeCategory: 'Minimal DFA Construction',
             },
           ],
-          revisionRecommendation: 'Master basic logic and DFA construction to unlock Section 6: Closure Properties & Pumping Lemma.',
+          revisionRecommendation: 'Practice reading and drawing complete DFA transition tables before moving on to regular expressions and grammatical models.',
         },
       },
       {
@@ -1435,36 +1431,9 @@ if (button) {
   },
 ];
 
-export const INITIAL_SYLLABUS_UPDATES: SyllabusUpdateRecord[] = [
-  {
-    id: 'upd-gate-2026-official',
-    goalId: 'gate_cse',
-    sourceName: 'Official GATE 2026 Organizing Institute Portal',
-    sourceUrl: 'https://gate2026.iitr.ac.in',
-    previousVersion: 'GATE-CS-2025.2',
-    newVersion: 'GATE-CS-2026.1',
-    detectedDate: '2026-11-12',
-    changeType: 'MINOR_AUTO',
-    status: 'APPLIED_AUTOMATICALLY',
-    changeDescription: 'Verified official CS syllabus section weightages and added latest 2025/2026 Two-Mark MSQ (Multiple Select Question) practice sets for TOC and DBMS.',
-    affectedTopics: ['gate-toc-pumping-lemma', 'pl-dbms-indexing'],
-    recommendedAction: 'Automatically applied minor PYQ resource enrichment while preserving all completed mastery records.',
-  },
-  {
-    id: 'upd-fs-react19-server-actions',
-    goalId: 'fullstack',
-    sourceName: 'React 19 & OWASP API Security 2026 Advisory',
-    sourceUrl: 'https://react.dev',
-    previousVersion: 'v2026.7',
-    newVersion: 'v2026.9-Major',
-    detectedDate: '2026-11-15',
-    changeType: 'MAJOR_APPROVAL_REQUIRED',
-    status: 'PENDING_USER_APPROVAL',
-    changeDescription: 'Proposes adding a new Stage 4 specialization module on Server-Side AI Streaming & Token Rate-Limiting Middleware (+2 topics, +90m estimated roadmap duration).',
-    affectedTopics: ['fs-jwt-oauth-architecture'],
-    recommendedAction: 'Requires your approval because this adds a new roadmap stage and extends the Full-Stack completion timeline.',
-  },
-];
+export const INITIAL_ROADMAPS = LEGACY_ROADMAPS.map(applyAuditedCurriculum);
+
+export const INITIAL_SYLLABUS_UPDATES: SyllabusUpdateRecord[] = [];
 
 export function createInitialMasteryRecords(): Record<string, TopicMasteryRecord> {
   const records: Record<string, TopicMasteryRecord> = {};
@@ -1590,7 +1559,7 @@ export function selectAutonomousDailySessions(
       return (
         m &&
         m.status !== 'NOT_STARTED' &&
-        (m.status === 'NEEDS_REVISION' || (m.nextReviewDate <= availability.date && m.status !== 'MASTERED'))
+        (m.status === 'NEEDS_REVISION' || (m.nextReviewDate && m.nextReviewDate <= availability.date))
       );
     });
 
@@ -1609,7 +1578,7 @@ export function selectAutonomousDailySessions(
       const gap = skillGaps.find((g) => g.targetGoalId === targetGoalId && g.recommendedTopicId);
       if (gap && gap.recommendedTopicId) {
         const candidate = roadmap.topics.find((t) => t.id === gap.recommendedTopicId);
-        if (candidate && arePrerequisitesMet(candidate, masteryMap)) {
+        if (candidate && masteryMap[candidate.id]?.status !== 'MASTERED' && arePrerequisitesMet(candidate, masteryMap)) {
           chosenTopic = candidate;
           sessionType =
             masteryMap[candidate.id]?.status === 'NOT_STARTED' ? 'NEW_CONCEPT' : 'WEAK_AREA_RECOVERY';
@@ -1739,10 +1708,8 @@ export function evaluateAssessmentAndMastery(
     status = 'IN_PROGRESS';
   }
 
-  const updatedMistakes =
-    scorePercent >= 80
-      ? prev.mistakeCategories.filter((c) => !newMistakeCategories.includes(c))
-      : Array.from(new Set([...prev.mistakeCategories, ...newMistakeCategories]));
+  // The full topic quiz was evaluated, so current misses replace resolved ones.
+  const updatedMistakes = [...new Set(newMistakeCategories)];
 
   return {
     ...prev,

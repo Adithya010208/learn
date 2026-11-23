@@ -1,3 +1,4 @@
+import { answerStudyQuestion } from '../services/localStudyCoach.ts';
 import React, { useState, useEffect } from 'react';
 import {
   Briefcase,
@@ -41,12 +42,14 @@ export const ProjectsView: React.FC<{
   masteryRecords: Record<string, TopicMasteryRecord>;
   onUpdateProjectStatus: (projectId: string, status: ProjectRecommendation['status']) => void;
   onToggleProjectStage: (projectId: string, stageIndex: number) => void;
+  onSaveRepository: (projectId: string, url: string) => void;
   onOpenPrerequisiteTopic: (topicId: string) => void;
 }> = ({
   projects,
   masteryRecords,
   onUpdateProjectStatus,
   onToggleProjectStage,
+  onSaveRepository,
   onOpenPrerequisiteTopic,
 }) => {
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
@@ -183,6 +186,27 @@ export const ProjectsView: React.FC<{
               </div>
 
               <div className="pt-3 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
+                <form className="mb-3 grid gap-2" onSubmit={(event) => {
+                  event.preventDefault();
+                  const input = event.currentTarget.elements.namedItem('repository') as HTMLInputElement;
+                  const value = input.value.trim();
+                  if (value && !/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/?$/.test(value)) {
+                    input.setCustomValidity('Enter an HTTPS GitHub repository URL.');
+                    input.reportValidity();
+                    return;
+                  }
+                  onSaveRepository(proj.id, value);
+                }}>
+                  <label className="study-field">GitHub repository
+                    <input name="repository" type="url" defaultValue={proj.repositoryUrl ?? ''} onInput={(event) => event.currentTarget.setCustomValidity('')} />
+                  </label>
+                  <button type="submit" className="study-button justify-self-start">Save portfolio link</button>
+                </form>
+                {proj.repositoryUrl && /^https:\/\/github\.com\//.test(proj.repositoryUrl) &&
+                  <a className="overview-link mb-2" href={proj.repositoryUrl} target="_blank" rel="noreferrer">Open project repository</a>}
+                {proj.developmentStages.some((stage) => stage.completed) && <p className="mb-2">
+                  <strong>Résumé draft</strong> · Completed {proj.developmentStages.filter((stage) => stage.completed).map((stage) => stage.stage).join('; ')} for {proj.title}.
+                </p>}
                 <p><strong>Portfolio Value:</strong> {proj.portfolioValue}</p>
                 <p className="mt-0.5"><strong>Testing Requirement:</strong> {proj.testingRequirements.join('; ')}</p>
               </div>
@@ -339,7 +363,7 @@ export const CareerGrowthView: React.FC<{
                     </td>
                     <td className="py-2.5 px-2 text-right font-mono tabular-nums">{sub.masteryPercent}%</td>
                     <td className="py-2.5 px-2 text-right font-mono tabular-nums">
-                      {sub.pyqSolved}/{sub.pyqTotal}
+                      {sub.pyqTotal ? `${sub.pyqSolved}/${sub.pyqTotal}` : '—'}
                     </td>
                     <td className="py-2.5 pl-2 text-right font-mono tabular-nums">{sub.mockAccuracyPercent}%</td>
                   </tr>
@@ -683,63 +707,20 @@ export const AICoachAndRecoveryView: React.FC<{
   onTriggerMissedSession,
 }) => {
   const [messages, setMessages] = useState<
-    { role: 'user' | 'coach'; text: string; aiMode?: 'LIVE_GEMINI' | 'RULE_BASED_FALLBACK'; modelUsed?: string }[]
-  >([
-    {
-      role: 'coach',
-      text: `Hello ADHI! I have live access to your ${assignedMode} schedule, your active ${activeMainSkill.toUpperCase()} roadmap, your ${overallPlacementReadiness}% Placement Readiness evidence, and your revision queue. Ask me anything about today's plan, why a topic was sequenced, or how to recover a missed session.`,
-      aiMode: 'LIVE_GEMINI',
-      modelUsed: 'Context-Initialized',
-    },
-  ]);
+    { role: 'user' | 'coach'; text: string; onDevice?: boolean }[]
+  >([]);
   const [inputQuestion, setInputQuestion] = useState('');
   const [loading, setLoading] = useState(false);
 
   const askCoach = async (questionText: string) => {
-    const trimmed = questionText.trim();
-    if (!trimmed || loading) return;
-
-    setMessages((prev) => [...prev, { role: 'user', text: trimmed }]);
+    const question = questionText.trim();
+    if (!question || loading) return;
+    setMessages((previous) => [...previous, { role: 'user', text: question }]);
     setInputQuestion('');
     setLoading(true);
-
     try {
-      const response = await fetch('/api/ai/coach', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          question: trimmed,
-          contextSummary: {
-            assignedMode,
-            activeMainSkill,
-            overallPlacementReadiness,
-            weakTopics,
-            nextSessionTitle: dailySessions[0]?.topicTitle || 'DSA Sliding Window & Monotonic Deque',
-            missedSessionsCount: recoveryHistory.length,
-            upcomingExamTitle: 'Semester V University Core CS Exams (Dec 10–18)',
-          },
-        }),
-      });
-      const data = await response.json();
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'coach',
-          text: data.text || 'Unable to generate response.',
-          aiMode: data.aiMode || 'RULE_BASED_FALLBACK',
-          modelUsed: data.modelUsed || 'rule-engine-v1',
-        },
-      ]);
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'coach',
-          text: `Offline Rule-Based Coach Fallback: Focus on "${dailySessions[0]?.topicTitle || 'DSA Sliding Window'}" next, and revise "${weakTopics[0] || 'OS Virtual Memory'}" during your 15m review buffer while protecting your 10:00 PM sleep time.`,
-          aiMode: 'RULE_BASED_FALLBACK',
-          modelUsed: 'offline-rule-engine',
-        },
-      ]);
+      const response = await answerStudyQuestion(question, dailySessions, weakTopics);
+      setMessages((previous) => [...previous, { role: 'coach', ...response }]);
     } finally {
       setLoading(false);
     }
@@ -757,17 +738,17 @@ export const AICoachAndRecoveryView: React.FC<{
     'What should I study today and why is this my next topic?',
     'What should I revise today based on my weak areas?',
     'How can I recover a missed session without losing sleep?',
-    'How am I progressing towards Placement 2029 and GATE CSE?',
+    'What is one practical task I can do in my next slot?',
   ];
 
   return (
     <div className="space-y-6">
       <div className="border-b border-slate-200 dark:border-slate-800 pb-5">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-          Context-Aware AI Personal Coach &amp; Missed Session Recovery
+          Study Coach
         </h1>
         <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-          Connected to your live schedule, mastery evidence, and career readiness. Clearly distinguishes live server-side Gemini AI from deterministic rule-based fallback.
+          Uses on-device Gemini Nano on compatible desktop Chrome browsers. Other browsers get guidance from your current plan. No AI service key is needed.
         </p>
       </div>
 
@@ -803,9 +784,7 @@ export const AICoachAndRecoveryView: React.FC<{
                       <span>
                         <strong>AI Personal Coach</strong>
                         {' · '}
-                        {m.aiMode === 'LIVE_GEMINI'
-                          ? `Live Server Gemini (${m.modelUsed})`
-                          : `Rule-Based Context Fallback (${m.modelUsed})`}
+                        {m.onDevice ? 'On-device Gemini Nano' : 'Planner guidance'}
                       </span>
                       <button
                         type="button"

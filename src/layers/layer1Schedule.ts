@@ -9,6 +9,7 @@ import {
   ModeChangePreviewSummary,
   TimetableActivity,
   TimetableTemplate,
+  UnavailableTime,
 } from '../types/domain.ts';
 
 /**
@@ -1087,6 +1088,48 @@ export function restorePostExamConfiguration(
   return next;
 }
 
+export function isValidUnavailableTime({ startTime, endTime }: UnavailableTime): boolean {
+  const clockTime = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+  return clockTime.test(startTime) && clockTime.test(endTime) && startTime < endTime;
+}
+
+function minutesBetween(start: string, end: string): number {
+  const toMinutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
+  return toMinutes(end) - toMinutes(start);
+}
+
+function subtractUnavailableTimes(
+  slot: AvailableLearningSlotContract,
+  unavailable: UnavailableTime[],
+): AvailableLearningSlotContract[] {
+  let windows: UnavailableTime[] = [{ startTime: slot.startTime, endTime: slot.endTime }];
+  for (const block of unavailable) {
+    if (!isValidUnavailableTime(block)) continue;
+    windows = windows.flatMap((window) => {
+      if (block.startTime >= window.endTime || block.endTime <= window.startTime) return [window];
+      const remaining: UnavailableTime[] = [];
+      if (window.startTime < block.startTime) {
+        remaining.push({ startTime: window.startTime, endTime: block.startTime });
+      }
+      if (block.endTime < window.endTime) {
+        remaining.push({ startTime: block.endTime, endTime: window.endTime });
+      }
+      return remaining;
+    });
+  }
+  return windows.map(({ startTime, endTime }) => {
+    if (startTime === slot.startTime && endTime === slot.endTime) return slot;
+    return {
+      ...slot,
+      slotId: `${slot.slotId}@${startTime}-${endTime}`,
+      startTime,
+      endTime,
+      displayTime: `${startTime}–${endTime}`,
+      durationMinutes: minutesBetween(startTime, endTime),
+    };
+  });
+}
+
 /**
  * LAYER 1 -> LAYER 2 INTERFACE:
  * Publishes available learning time slots and health/academic constraints for a given date.
@@ -1096,7 +1139,8 @@ export function publishDailyAvailability(
   assignments: Record<string, DateModeAssignment>,
   templates: Record<DailyMode, TimetableTemplate>,
   exams: ExamConfiguration[],
-  defaultMode: DailyMode = 'WORKING_DAY'
+  defaultMode: DailyMode = 'WORKING_DAY',
+  unavailable: UnavailableTime[] = [],
 ): Layer1PublishedAvailability {
   const resolved = resolveDateMode(date, assignments, defaultMode);
   const template = templates[resolved.mode];
@@ -1116,7 +1160,8 @@ export function publishDailyAvailability(
       durationMinutes: act.durationMinutes,
       designatedCategory: act.category,
       suggestedGoalId: act.targetGoalId,
-    }));
+    }))
+    .flatMap((slot) => subtractUnavailableTimes(slot, unavailable));
 
   const totalAvailableLearningMinutes = slots.reduce((sum, s) => sum + s.durationMinutes, 0);
   const sleepProtectedMinutes = template.activities

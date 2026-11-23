@@ -391,9 +391,30 @@ export function evaluateCareerOutcomesAndSkillGaps(
     placementDimensions.reduce((sum, d) => sum + d.verifiedScore, 0) / placementDimensions.length
   );
 
-  const gateSubjectAvg = Math.round(
-    gateSubjects.reduce((sum, s) => sum + s.masteryPercent, 0) / gateSubjects.length
-  );
+  const officialTopics = roadmaps.find((roadmap) => roadmap.goalId === 'gate_cse')
+    ?.topics.filter((topic) => topic.isOfficialGateTopic) ?? [];
+  const officialSections = [...new Set(officialTopics.map((topic) => topic.stageTitle))];
+  const gateCoverage = officialSections.map((subject): GateSubjectProgress => {
+    const topics = officialTopics.filter((topic) => topic.stageTitle === subject);
+    const evidence = topics.map((topic) => masteryMap[topic.id]);
+    const existing = gateSubjects.find((item) => item.subject === subject);
+    return {
+      subject,
+      isOfficialSyllabus: true,
+      totalTopics: topics.length,
+      topicsCompleted: evidence.filter((record) => record?.status === 'MASTERED').length,
+      masteryPercent: Math.round(evidence.reduce((sum, record) => sum + (record?.understandingLevel ?? 0), 0) / topics.length),
+      pyqSolved: existing?.pyqSolved ?? 0,
+      pyqTotal: existing?.pyqTotal ?? 0,
+      mockAccuracyPercent: existing?.mockAccuracyPercent ?? 0,
+      isWeakSubject: evidence.some((record) => record?.status === 'NEEDS_REVISION'),
+      revisionCycleStatus: existing?.revisionCycleStatus ?? 'UP_TO_DATE',
+    };
+  });
+  const visibleGateSubjects = gateCoverage.length ? gateCoverage : gateSubjects;
+  const gateSubjectAvg = visibleGateSubjects.length
+    ? Math.round(visibleGateSubjects.reduce((sum, section) => sum + section.masteryPercent, 0) / visibleGateSubjects.length)
+    : 0;
   const gateOverallReadinessPercent = Math.max(gateSubjectAvg, gateMasteryAvg);
 
   // Generate closed-loop Skill Gap Recommendations for Layer 2 (Beginner-First Order!)
@@ -445,13 +466,13 @@ export function evaluateCareerOutcomesAndSkillGaps(
     });
   }
 
-  if ((masteryMap['gate-foundations-logic-dfa']?.understandingLevel ?? 0) < 80) {
+  if ((masteryMap['gate27-discrete-logic']?.understandingLevel ?? 0) < 80) {
     skillGapsForLayer2.push({
       id: 'gap-gate-beginner',
       targetGoalId: 'gate_cse',
       gapArea: 'Stage 1 Beginner Foundation: Propositional Logic, Sets & Intro to DFA',
       evidenceBasis: 'Starting GATE CSE from scratch (0% mastery) — required before Closure Properties & Pumping Lemma.',
-      recommendedTopicId: 'gate-foundations-logic-dfa',
+      recommendedTopicId: 'gate27-discrete-logic',
       urgency: 'HIGH',
       actionForLayer2: 'Schedule Stage 1 GATE Logic & DFA Foundations in the 6:25–7:10 PM GATE slot.',
     });
@@ -468,7 +489,7 @@ export function evaluateCareerOutcomesAndSkillGaps(
     graduationTargetYear: 2029,
     placementDimensions,
     gateOverallReadinessPercent,
-    gateSubjects,
+    gateSubjects: visibleGateSubjects,
     cpRecord,
     languages: {
       japanese: {
