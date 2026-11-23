@@ -7,7 +7,7 @@ A personal study planner for placement preparation, Java DSA, GATE CSE, full-sta
 Use Node.js 24 and npm.
 
 ```sh
-npm ci --legacy-peer-deps --no-audit --no-fund
+npm ci --no-audit --no-fund
 npm run dev
 ```
 
