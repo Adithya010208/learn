@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowDownRight, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, ListChecks, Plus, SlidersHorizontal, X } from 'lucide-react';
 import { isValidUnavailableTime } from '../layers/layer1Schedule.ts';
 import type {
@@ -31,8 +31,8 @@ export function StudyPlanView({
 }: Props) {
   const { date, assignedMode, slots } = availability;
   const [preview, setPreview] = useState<{ blocks: UnavailableTime[]; message: string } | null>(null);
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
+  const blockForm = useRef<HTMLFormElement>(null);
+  const [blockError, setBlockError] = useState('');
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 15000);
@@ -65,7 +65,6 @@ export function StudyPlanView({
   const headingDate = new Intl.DateTimeFormat('en-GB', {
     weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
   }).format(new Date(`${date}T12:00:00`));
-  const block = { startTime, endTime };
   const changeDate = (amount: number) => {
     const next = new Date(`${date}T12:00:00`);
     next.setDate(next.getDate() + amount);
@@ -158,19 +157,31 @@ export function StudyPlanView({
           <section className="study-card study-settings">
             <h2>Unavailable hours</h2>
             <p>Study sessions adjust around these blocks.</p>
-            <form className="study-block-form" onSubmit={(event) => {
+            <form ref={blockForm} className="study-block-form" onInput={() => {
+              setBlockError('');
+              setPreview(null);
+            }} onSubmit={(event) => {
               event.preventDefault();
-              if (!isValidUnavailableTime(block) ||
-                 blocks.some((item) => item.startTime === startTime && item.endTime === endTime)) return;
+              const values = new FormData(event.currentTarget);
+              const block = { startTime: String(values.get('blockStart') ?? ''), endTime: String(values.get('blockEnd') ?? '') };
+              if (!isValidUnavailableTime(block)) {
+                setBlockError('Choose an end time after the start time.');
+                return;
+              }
+              if (blocks.some((item) => item.startTime === block.startTime && item.endTime === block.endTime)) {
+                setBlockError('Those hours are already blocked.');
+                return;
+              }
               const next = [...blocks, block].sort((a, b) => a.startTime.localeCompare(b.startTime));
+              setBlockError('');
               setPreview({ blocks: next, message: previewBlocks?.(next) ?? 'Review the change before adding the block.' });
             }}>
               <div>
-                <label className="study-field">From<input type="time" required value={startTime} onChange={(event) => setStartTime(event.target.value)} /></label>
-                <label className="study-field">To<input type="time" required value={endTime} onChange={(event) => setEndTime(event.target.value)} /></label>
+                <label className="study-field">From<input type="time" name="blockStart" required /></label>
+                <label className="study-field">To<input type="time" name="blockEnd" required /></label>
               </div>
-              {startTime && endTime && startTime >= endTime && <p role="status">Choose an end time after the start time.</p>}
-              <button type="submit" className="study-button study-button-primary" disabled={!isValidUnavailableTime(block)}><Plus size={16} />Preview time block</button>
+              {blockError && <p role="status">{blockError}</p>}
+              <button type="submit" className="study-button study-button-primary"><Plus size={16} />Preview time block</button>
             </form>
             {preview && <div className="mt-3 grid gap-2">
               <p role="status" className="text-sm">{preview.message}</p>
@@ -178,8 +189,7 @@ export function StudyPlanView({
                 <button type="button" className="study-button study-button-primary" onClick={() => {
                   onBlocks(preview.blocks);
                   setPreview(null);
-                  setStartTime('');
-                  setEndTime('');
+                  blockForm.current?.reset();
                 }}>Apply time block</button>
                 <button type="button" className="study-button" onClick={() => setPreview(null)}>Cancel</button>
               </div>
